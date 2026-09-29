@@ -1,0 +1,55 @@
+{
+  "expo": {
+    "name": "BillionBrains",
+    "slug": "billionbrains-lms",
+    "scheme": "billionbrains",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#F7F8FB",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "ltd.billionbrains.lms"
+    },
+    "android": {
+      "package": "ltd.billionbrains.lms",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FDFDFB"
+      }
+    },
+    "icon": "./assets/icon.png",
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash.png",
+          "imageWidth": 260,
+          "resizeMode": "contain",
+          "backgroundColor": "#FDFDFB"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "BillionBrains needs your photo library to attach an existing scan of the customer’s ID.",
+          "cameraPermission": "BillionBrains uses the camera to photograph the customer’s ID proof."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "BillionBrains uses your location to pin a customer’s doorstep when you onboard them."
+        }
+      ],
+      "@react-native-community/datetimepicker"
+    ]
+  }
+}

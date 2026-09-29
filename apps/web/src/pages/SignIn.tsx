@@ -1,0 +1,82 @@
+import { useState, type FormEvent } from 'react';
+import { t } from '@lms/i18n';
+import { Link, useNavigate } from 'react-router-dom';
+import { AuthLayout } from '../components/AuthLayout';
+import { Button } from '../components/Button';
+import { TextField } from '../components/TextField';
+import { AppleIcon, GoogleIcon, LockIcon, MailIcon } from '../components/icons';
+import { validateEmail, validatePassword } from '../lib/validate';
+
+type Errors = { email?: string; password?: string };
+
+export function SignIn() {
+  const navigate = useNavigate();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [remember, setRemember] = useState(true);
+  const [errors, setErrors] = useState<Errors>({});
+  const [submitting, setSubmitting] = useState(false);
+
+  async function onSubmit(event: FormEvent) {
+    event.preventDefault();
+    const next: Errors = { email: validateEmail(email), password: validatePassword(password) };
+    setErrors(next);
+    if (next.email || next.password) return;
+
+    setSubmitting(true);
+    // UI-only for now: the API call lands here once /auth/login is wired up.
+    await new Promise((resolve) => setTimeout(resolve, 900));
+    setSubmitting(false);
+    navigate('/dashboard');
+  }
+
+  return (
+    <AuthLayout>
+      <div className="form-head">
+        <h1>{t('auth.signIn.title')}</h1>
+        <p>{t('auth.signIn.subtitle')}</p>
+      </div>
+
+      <form className="stack" onSubmit={onSubmit} noValidate>
+        <TextField
+          label={t('auth.signIn.userOrEmail')}
+          type="email"
+          inputMode="email"
+          autoComplete="email"
+          placeholder="you@example.com"
+          lead={<MailIcon />}
+          value={email}
+          error={errors.email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+
+        <TextField
+          label={t('auth.field.password')}
+          revealable
+          autoComplete="current-password"
+          placeholder={t('auth.field.passwordPlaceholder')}
+          lead={<LockIcon />}
+          value={password}
+          error={errors.password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+
+        <div className="row-between">
+          <label className="checkbox">
+            <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+            {t('auth.signIn.keepSignedIn')}
+          </label>
+          <Link to="/forgot-password">{t('auth.signIn.forgotPassword')}</Link>
+        </div>
+
+        <Button type="submit" loading={submitting}>
+          {t('auth.signIn.submit')}
+        </Button>
+
+        <p className="switch-line">
+          {t('auth.signIn.noAccount')} <Link to="/sign-up">{t('auth.signIn.signUpLink')}</Link>
+        </p>
+      </form>
+    </AuthLayout>
+  );
+}

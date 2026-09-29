@@ -1,0 +1,32 @@
+/** Settings screen (web + mobile). */
+export const settings = {
+  title: 'Settings',
+  subtitle: 'Manage your account, preferences and security',
+  groups: {
+    account: 'Account',
+    collectionSetup: 'Collection setup',
+    preferences: 'Preferences',
+    security: 'Security',
+  },
+  rows: {
+    name: 'Name',
+    role: 'Role',
+    branch: 'Branch',
+    lines: 'Lines',
+    linesValue: { one: '{count} line configured', other: '{count} lines configured' },
+    customers: 'Customers',
+    customersValue: { one: '{count} customer on file', other: '{count} customers on file' },
+    language: 'Language',
+    languageHint: 'Applies to every screen on this device',
+    currency: 'Currency',
+    currencyValue: '₹ Indian Rupee',
+    cutoff: 'Day-end cut-off',
+    cutoffValue: '6:30 PM',
+    password: 'Password',
+    passwordValue: 'Last changed 41 days ago',
+    twoFactor: 'Two-factor',
+    twoFactorValue: 'SMS to •••• 3210',
+    sessions: 'Active sessions',
+    sessionsValue: '2 devices',
+  },
+};

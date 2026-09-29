@@ -1,0 +1,519 @@
+// =============================================================================
+//  Microfinance LMS — Prisma schema (PostgreSQL)
+//
+//  Money convention: every monetary column is an Int holding MINOR UNITS
+//  (paise / cents). Never store currency as Float. Rates & ratios use Decimal.
+//  Suffix `Minor` on a field name always means "integer minor units".
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------- enums ----
+
+enum Role {
+  ADMIN // full access, product + user configuration
+  MANAGER // branch level: approvals, ledger adjustments, reports
+  LOAN_OFFICER // field staff: onboarding, applications, collections
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum KycStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum IdType {
+  AADHAAR
+  PAN
+  VOTER_ID
+  DRIVING_LICENSE
+  PASSPORT
+}
+
+enum RepaymentFrequency {
+  DAILY
+  WEEKLY
+  FORTNIGHTLY
+  MONTHLY
+}
+
+enum InterestMethod {
+  FLAT // interest on original principal for the whole tenor
+  REDUCING // interest on the outstanding balance (declining balance)
+}
+
+enum FeeType {
+  PERCENT_OF_PRINCIPAL
+  FLAT_AMOUNT
+}
+
+enum PenaltyBasis {
+  PERCENT_OF_OVERDUE_INSTALLMENT // charged once per late installment
+  PERCENT_OF_OVERDUE_PER_DAY // accrues daily on the overdue amount
+  FLAT_PER_DAY
+}
+
+enum LoanStatus {
+  DRAFT // officer is still filling the application
+  SUBMITTED // sent for review
+  UNDER_REVIEW // picked up by a reviewer
+  APPROVED // approved, awaiting disbursement
+  REJECTED
+  DISBURSED // money handed over, schedule live
+  CLOSED // fully repaid
+  WRITTEN_OFF
+}
+
+enum InstallmentStatus {
+  PENDING
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  WAIVED
+}
+
+enum TxnType {
+  DISBURSEMENT // money out to the customer
+  REPAYMENT // money in from the customer
+  PROCESSING_FEE
+  PENALTY
+  WAIVER
+  ADJUSTMENT // manual ledger correction (MANAGER/ADMIN only)
+  REVERSAL
+}
+
+enum TxnChannel {
+  CASH
+  UPI
+  BANK_TRANSFER
+  CHEQUE
+  SYSTEM // system generated (accruals, fees)
+}
+
+enum TxnStatus {
+  POSTED
+  REVERSED
+}
+
+enum SyncOpStatus {
+  APPLIED
+  DUPLICATE // idempotency key already seen — no-op replay
+  REJECTED // business rule failure, surfaced back to the device
+}
+
+// ---------------------------------------------------------- org & users ----
+
+model Branch {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  name      String
+  address   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users     User[]
+  customers Customer[]
+  loans     Loan[]
+
+  @@map("branches")
+}
+
+/// Staff account. The SAME row serves both surfaces:
+///  - web dashboard  -> email + passwordHash + role (RBAC)
+///  - mobile app     -> phone + OTP -> mpinHash + optional biometric unlock
+model User {
+  id           String     @id @default(uuid())
+  branchId     String?
+  employeeCode String?    @unique
+  fullName     String
+  email        String?    @unique
+  phone        String     @unique // E.164, e.g. +919876543210
+  passwordHash String? // web login only
+  mpinHash     String? // 4-digit MPIN, argon2/bcrypt hashed — never store plain
+  mpinSetAt    DateTime?
+  role         Role       @default(LOAN_OFFICER)
+  status       UserStatus @default(ACTIVE)
+  lastLoginAt  DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  branch            Branch?           @relation(fields: [branchId], references: [id])
+  devices           Device[]
+  otpChallenges     OtpChallenge[]
+  customersOnboard  Customer[]        @relation("CustomerOfficer")
+  loansOwned        Loan[]            @relation("LoanOfficer")
+  loanEvents        LoanStatusEvent[]
+  transactions      Transaction[]     @relation("TxnCreatedBy")
+  auditLogs         AuditLog[]
+  syncOps           SyncOperation[]
+
+  @@index([branchId, role])
+  @@map("users")
+}
+
+/// A physical phone bound to a staff account. Holds the offline sync cursor so
+/// a device only pulls the delta it has not seen.
+model Device {
+  id             String   @id @default(uuid())
+  userId         String
+  deviceId       String // stable install id generated on first launch
+  platform       String // ios | android
+  model          String?
+  pushToken      String?
+  biometricBound Boolean  @default(false)
+  lastSyncAt     DateTime?
+  syncCursor     DateTime? // watermark for incremental pull
+  revokedAt      DateTime?
+  createdAt      DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, deviceId])
+  @@map("devices")
+}
+
+/// Short-lived SMS OTP. `codeHash` only — the plaintext lives in the SMS.
+model OtpChallenge {
+  id          String    @id @default(uuid())
+  phone       String
+  userId      String?
+  codeHash    String
+  purpose     String    @default("LOGIN") // LOGIN | MPIN_RESET
+  attempts    Int       @default(0)
+  maxAttempts Int       @default(5)
+  expiresAt   DateTime
+  consumedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([phone, createdAt])
+  @@map("otp_challenges")
+}
+
+// ------------------------------------------------------------ customers ----
+
+model Customer {
+  id           String    @id @default(uuid())
+  branchId     String
+  officerId    String? // onboarding loan officer
+  customerCode String    @unique // human readable, e.g. CUS-000123
+  fullName     String
+  phone        String
+  altPhone     String?
+  dateOfBirth  DateTime?
+  gender       String?
+  occupation   String?
+  monthlyIncomeMinor Int?
+
+  // KYC
+  idType       IdType?
+  idNumber     String? // store masked/encrypted at rest in production
+  kycStatus    KycStatus @default(PENDING)
+  kycVerifiedAt DateTime?
+  photoUrl     String?
+  incomeProofUrl String?
+
+  // Address
+  addressLine1 String?
+  addressLine2 String?
+  city         String?
+  state        String?
+  pincode      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  branch    Branch             @relation(fields: [branchId], references: [id])
+  officer   User?              @relation("CustomerOfficer", fields: [officerId], references: [id])
+  guarantors Guarantor[]
+  documents CustomerDocument[]
+  loans     Loan[]
+
+  @@unique([branchId, phone])
+  @@index([fullName])
+  @@map("customers")
+}
+
+model Guarantor {
+  id         String  @id @default(uuid())
+  customerId String
+  fullName   String
+  phone      String
+  relation   String?
+  idType     IdType?
+  idNumber   String?
+  address    String?
+  photoUrl   String?
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
+  @@map("guarantors")
+}
+
+model CustomerDocument {
+  id         String   @id @default(uuid())
+  customerId String
+  kind       String // PHOTO | ID_FRONT | ID_BACK | INCOME_PROOF | SIGNATURE
+  url        String
+  mimeType   String?
+  uploadedAt DateTime @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId, kind])
+  @@map("customer_documents")
+}
+
+// ------------------------------------------------- products & repayment ----
+
+/// Everything the repayment engine needs to price and schedule a loan.
+model LoanProduct {
+  id       String  @id @default(uuid())
+  code     String  @unique
+  name     String
+  active   Boolean @default(true)
+
+  frequency      RepaymentFrequency
+  interestMethod InterestMethod
+  /// Nominal ANNUAL interest rate in percent, e.g. 24.00 = 24% p.a.
+  annualRatePct  Decimal            @db.Decimal(6, 3)
+
+  minPrincipalMinor Int
+  maxPrincipalMinor Int
+  minInstallments   Int
+  maxInstallments   Int
+
+  // Processing fee
+  processingFeeType     FeeType @default(PERCENT_OF_PRINCIPAL)
+  processingFeeValue    Decimal @db.Decimal(10, 3) // percent, or minor units when FLAT_AMOUNT
+  deductFeeFromDisbursal Boolean @default(true)
+
+  // Penalty / late payment
+  gracePeriodDays  Int          @default(0)
+  penaltyBasis     PenaltyBasis @default(PERCENT_OF_OVERDUE_INSTALLMENT)
+  penaltyValue     Decimal      @db.Decimal(10, 3) @default(0)
+  maxPenaltyMinor  Int? // cap per installment
+
+  roundingMinor Int @default(1) // round installments to nearest N minor units
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  loans Loan[]
+
+  @@map("loan_products")
+}
+
+// ----------------------------------------------------------------- loan ----
+
+model Loan {
+  id         String     @id @default(uuid())
+  loanNumber String     @unique // LN-2026-000045
+  branchId   String
+  customerId String
+  productId  String
+  officerId  String?
+  status     LoanStatus @default(DRAFT)
+
+  // Terms snapshot — copied from the product at application time so later
+  // product edits never mutate a live loan.
+  principalMinor   Int
+  annualRatePct    Decimal            @db.Decimal(6, 3)
+  interestMethod   InterestMethod
+  frequency        RepaymentFrequency
+  installmentCount Int
+  gracePeriodDays  Int                @default(0)
+  penaltyBasis     PenaltyBasis
+  penaltyValue     Decimal            @db.Decimal(10, 3) @default(0)
+
+  processingFeeMinor Int @default(0)
+  totalInterestMinor Int @default(0)
+  totalPayableMinor  Int @default(0) // principal + interest
+  installmentMinor   Int @default(0) // regular installment amount
+
+  // Live balances, maintained by the ledger on every posted transaction.
+  principalOutstandingMinor Int @default(0)
+  interestOutstandingMinor  Int @default(0)
+  penaltyOutstandingMinor   Int @default(0)
+  totalPaidMinor            Int @default(0)
+
+  purpose        String?
+  appliedAt      DateTime?
+  reviewedAt     DateTime?
+  decisionAt     DateTime?
+  decisionNote   String?
+  disbursedAt    DateTime?
+  firstDueDate   DateTime?
+  maturityDate   DateTime?
+  closedAt       DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  branch    Branch              @relation(fields: [branchId], references: [id])
+  customer  Customer            @relation(fields: [customerId], references: [id])
+  product   LoanProduct         @relation(fields: [productId], references: [id])
+  officer   User?               @relation("LoanOfficer", fields: [officerId], references: [id])
+  schedule  RepaymentSchedule[]
+  transactions Transaction[]
+  events    LoanStatusEvent[]
+
+  @@index([branchId, status])
+  @@index([customerId])
+  @@index([officerId, status])
+  @@map("loans")
+}
+
+/// Immutable audit trail of the application lifecycle.
+model LoanStatusEvent {
+  id        String     @id @default(uuid())
+  loanId    String
+  fromStatus LoanStatus?
+  toStatus  LoanStatus
+  actorId   String?
+  note      String?
+  createdAt DateTime   @default(now())
+
+  loan  Loan  @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  actor User? @relation(fields: [actorId], references: [id])
+
+  @@index([loanId, createdAt])
+  @@map("loan_status_events")
+}
+
+/// One row per installment, generated at disbursement.
+model RepaymentSchedule {
+  id          String            @id @default(uuid())
+  loanId      String
+  seq         Int // 1-based installment number
+  dueDate     DateTime          @db.Date
+  principalDueMinor Int
+  interestDueMinor  Int
+  totalDueMinor     Int
+  penaltyMinor      Int         @default(0)
+  paidMinor         Int         @default(0)
+  status      InstallmentStatus @default(PENDING)
+  paidAt      DateTime?
+  openingBalanceMinor Int       @default(0)
+  closingBalanceMinor Int       @default(0)
+
+  loan       Loan          @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  allocations PaymentAllocation[]
+
+  @@unique([loanId, seq])
+  @@index([dueDate, status])
+  @@map("repayment_schedules")
+}
+
+// --------------------------------------------------------------- ledger ----
+
+model Transaction {
+  id          String     @id @default(uuid())
+  loanId      String
+  receiptNo   String?    @unique
+  type        TxnType
+  channel     TxnChannel @default(CASH)
+  status      TxnStatus  @default(POSTED)
+  amountMinor Int
+
+  // Split of a repayment across buckets (sums to amountMinor for REPAYMENT).
+  principalPartMinor Int @default(0)
+  interestPartMinor  Int @default(0)
+  penaltyPartMinor   Int @default(0)
+
+  /// Wall-clock time the collection actually happened on the device. May be
+  /// well before `createdAt` for payments captured offline.
+  collectedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  createdById String?
+  reversalOfId String? @unique
+  note        String?
+  latitude    Decimal? @db.Decimal(9, 6)
+  longitude   Decimal? @db.Decimal(9, 6)
+
+  /// Idempotency key minted on the device. Guarantees a queued offline payment
+  /// posts exactly once however many times the outbox retries.
+  clientOpId  String?  @unique
+
+  loan        Loan                @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  createdBy   User?               @relation("TxnCreatedBy", fields: [createdById], references: [id])
+  reversalOf  Transaction?        @relation("Reversal", fields: [reversalOfId], references: [id])
+  reversedBy  Transaction?        @relation("Reversal")
+  allocations PaymentAllocation[]
+
+  @@index([loanId, collectedAt])
+  @@index([createdById, collectedAt])
+  @@map("transactions")
+}
+
+/// How one payment was applied across installments (penalty -> interest ->
+/// principal, oldest installment first).
+model PaymentAllocation {
+  id            String @id @default(uuid())
+  transactionId String
+  scheduleId    String
+  principalMinor Int   @default(0)
+  interestMinor  Int   @default(0)
+  penaltyMinor   Int   @default(0)
+
+  transaction Transaction       @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  schedule    RepaymentSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  @@index([scheduleId])
+  @@map("payment_allocations")
+}
+
+// ----------------------------------------------------------------- sync ----
+
+/// Server-side record of every offline operation a device has pushed. The
+/// unique clientOpId makes the whole sync endpoint replay-safe.
+model SyncOperation {
+  id         String       @id @default(uuid())
+  clientOpId String       @unique
+  deviceId   String
+  userId     String
+  entity     String // TRANSACTION | CUSTOMER | LOAN_APPLICATION
+  action     String // CREATE | UPDATE
+  payload    Json
+  status     SyncOpStatus
+  error      String?
+  resultId   String? // id of the row created/updated on the server
+  receivedAt DateTime     @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([deviceId, receivedAt])
+  @@map("sync_operations")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  actorId   String?
+  action    String
+  entity    String
+  entityId  String?
+  meta      Json?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id])
+
+  @@index([entity, entityId])
+  @@map("audit_logs")
+}
