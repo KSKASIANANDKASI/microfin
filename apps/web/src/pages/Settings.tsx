@@ -3,8 +3,10 @@ import { LOCALES, t, tp } from '@lms/i18n';
 import { Card } from '../components/Card';
 import { useLocale } from '../i18n';
 import { customers, lines, user } from '../lib/data';
+import { usePortfolio } from '../lib/usePortfolio';
 
-type Row = { id: string; label: string; value: string; to?: string; language?: true };
+/** `to` links to the page that manages the row; `change` labels that link Change instead of Manage. */
+type Row = { id: string; label: string; value: string; to?: string; change?: true; language?: true };
 
 function groups(): { title: string; rows: Row[] }[] {
   return [
@@ -39,7 +41,13 @@ function groups(): { title: string; rows: Row[] }[] {
     {
       title: t('settings.groups.security'),
       rows: [
-        { id: 'password', label: t('settings.rows.password'), value: t('settings.rows.passwordValue') },
+        {
+          id: 'password',
+          label: t('settings.rows.password'),
+          value: t('settings.rows.passwordValue'),
+          to: '/settings/password',
+          change: true,
+        },
         { id: 'twoFactor', label: t('settings.rows.twoFactor'), value: t('settings.rows.twoFactorValue') },
         { id: 'sessions', label: t('settings.rows.sessions'), value: t('settings.rows.sessionsValue') },
       ],
@@ -48,6 +56,7 @@ function groups(): { title: string; rows: Row[] }[] {
 }
 
 export function Settings() {
+  usePortfolio();
   const [locale, setLocale] = useLocale();
 
   return (
@@ -86,7 +95,7 @@ export function Settings() {
                   </div>
                 ) : row.to ? (
                   <Link className="btn btn--sm btn--ghost" to={row.to}>
-                    {t('common.actions.manage')}
+                    {row.change ? t('common.actions.change') : t('common.actions.manage')}
                   </Link>
                 ) : (
                   <button type="button" className="btn btn--sm btn--ghost">

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { t } from '@lms/i18n';
+import { FormError, errorMessage } from '../components/bits';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { Picker } from '../components/Picker';
@@ -11,7 +12,8 @@ import { CheckIcon } from '../components/icons';
 import {
   FREQUENCIES,
   MONTH_DAYS,
-  OFFICERS,
+  createLine,
+  officers,
   WEEKDAYS,
   monthDayLabel,
   officerLabel,
@@ -28,9 +30,12 @@ export function NewLineScreen({ navigation }: Props) {
   const [name, setName] = useState('');
   const [frequency, setFrequency] = useState<Frequency>('daily');
   const [schedule, setSchedule] = useState('');
-  const [officer, setOfficer] = useState(OFFICERS[OFFICERS.length - 1]!);
+  // The picker shows names; `Unassigned` (last) leaves the line without an officer.
+  const officerNames = [...officers.map((o) => o.name), 'Unassigned'];
+  const [officer, setOfficer] = useState('Unassigned');
   const [errors, setErrors] = useState<Errors>({});
   const [submitting, setSubmitting] = useState(false);
+  const [saveError, setSaveError] = useState<string>();
 
   const selected = FREQUENCIES.find((f) => f.id === frequency)!;
   const needsSchedule = selected.schedule !== 'none';
@@ -40,7 +45,7 @@ export function NewLineScreen({ navigation }: Props) {
   // pick back to the stored (English) value.
   const scheduleValues = byWeekday ? WEEKDAYS : MONTH_DAYS;
   const scheduleLabels = scheduleValues.map(byWeekday ? weekdayLabel : monthDayLabel);
-  const officerLabels = OFFICERS.map(officerLabel);
+  const officerLabels = officerNames.map(officerLabel);
 
   function pickFrequency(next: Frequency) {
     setFrequency(next);
@@ -62,8 +67,19 @@ export function NewLineScreen({ navigation }: Props) {
     if (next.name || next.schedule) return;
 
     setSubmitting(true);
-    // UI-only for now: POST /lines goes here.
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    setSaveError(undefined);
+    try {
+      await createLine({
+        name: name.trim(),
+        frequency,
+        schedule: needsSchedule ? schedule : undefined,
+        officerId: officers.find((o) => o.name === officer)?.id ?? null,
+      });
+    } catch (error) {
+      setSaveError(errorMessage(error));
+      setSubmitting(false);
+      return;
+    }
     setSubmitting(false);
     navigation.popTo('Lines');
   }
@@ -131,13 +147,14 @@ export function NewLineScreen({ navigation }: Props) {
             placeholder={t('lines.form.officerPlaceholder')}
             value={officerLabel(officer)}
             options={officerLabels}
-            onChange={(next) => setOfficer(OFFICERS[officerLabels.indexOf(next)] ?? next)}
+            onChange={(next) => setOfficer(officerNames[officerLabels.indexOf(next)] ?? next)}
             hint={t('lines.form.officerHint')}
           />
         </View>
       </Card>
 
       <View style={styles.actions}>
+        <FormError message={saveError} />
         <Button label={t('lines.form.create')} onPress={onSubmit} loading={submitting} />
         <Button label={t('common.actions.cancel')} variant="ghost" onPress={() => navigation.goBack()} />
       </View>

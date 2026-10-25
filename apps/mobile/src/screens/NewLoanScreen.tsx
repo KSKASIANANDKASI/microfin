@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { t, tp } from '@lms/i18n';
+import { FormError, errorMessage } from '../components/bits';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { DateField } from '../components/DateField';
@@ -41,7 +42,6 @@ const MAX_TENURE = 60;
 /** A disbursal can be back-dated for a late entry, but not booked far ahead. */
 const MAX_DAYS_AHEAD = 7;
 
-const CUSTOMER_LABELS = customers.map((c) => `${c.name} · ${c.phone}`);
 const digits = (value: string) => Number(value.replace(/[^\d]/g, ''));
 
 export function NewLoanScreen({ navigation, route }: Props) {
@@ -60,6 +60,7 @@ export function NewLoanScreen({ navigation, route }: Props) {
   const [emi, setEmi] = useState('');
   const [errors, setErrors] = useState<Errors>({});
   const [submitting, setSubmitting] = useState(false);
+  const [saveError, setSaveError] = useState<string>();
 
   const customer = customers.find((c) => c.id === customerId);
   const principal = digits(amount);
@@ -135,18 +136,24 @@ export function NewLoanScreen({ navigation, route }: Props) {
     if (Object.values(next).some(Boolean)) return;
 
     setSubmitting(true);
-    // UI-only for now: POST /loans (status SUBMITTED) goes here.
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    const application = submitApplication({
-      customerId,
-      type,
-      principal,
-      annualRatePct: rateValue,
-      months,
-      fee: feeValue,
-      emi: emiValue,
-      disburseOn: date,
-    });
+    setSaveError(undefined);
+    let application;
+    try {
+      application = await submitApplication({
+        customerId,
+        type,
+        principal,
+        annualRatePct: rateValue,
+        months,
+        fee: feeValue,
+        emi: emiValue,
+        disburseOn: date,
+      });
+    } catch (error) {
+      setSaveError(errorMessage(error));
+      setSubmitting(false);
+      return;
+    }
     setSubmitting(false);
     // Replace the form, so Back from the review doesn't reopen a submitted loan.
     navigation.replace('ApprovalView', { applicationId: application.id });
@@ -160,7 +167,7 @@ export function NewLoanScreen({ navigation, route }: Props) {
             label={t('loans.fields.customer')}
             placeholder={t('loans.new.selectCustomer')}
             value={customer ? `${customer.name} · ${customer.phone}` : ''}
-            options={CUSTOMER_LABELS}
+            options={customers.map((c) => `${c.name} · ${c.phone}`)}
             onChange={(label) => {
               const picked = customers.find((c) => `${c.name} · ${c.phone}` === label);
               setCustomerId(picked?.id ?? '');
@@ -185,7 +192,7 @@ export function NewLoanScreen({ navigation, route }: Props) {
             hint={t('loans.new.disbursalDateHint')}
           />
 
-          {customer && !customer.proof ? (
+          {customer && !customer.proofs.length ? (
             <Pressable
               style={styles.notice}
               onPress={() => navigation.navigate('CustomerProof', { customerId: customer.id })}
@@ -342,6 +349,7 @@ export function NewLoanScreen({ navigation, route }: Props) {
       </Card>
 
       <View style={styles.actions}>
+        <FormError message={saveError} />
         <Button label={t('loans.new.submit')} onPress={onSubmit} loading={submitting} />
         <Button label={t('common.actions.cancel')} variant="ghost" onPress={() => navigation.goBack()} />
       </View>

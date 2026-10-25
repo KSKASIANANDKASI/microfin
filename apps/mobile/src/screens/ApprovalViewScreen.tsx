@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { t, tp } from '@lms/i18n';
+import { FormError, errorMessage } from '../components/bits';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { Screen } from '../components/Screen';
@@ -24,6 +25,7 @@ import {
 } from '../lib/data';
 import { addMonths, computeLoan, formatDate, loanTypeLabel } from '../lib/loan';
 import { useApplications } from '../lib/useApplications';
+import { isManager } from '../lib/session';
 import type { AppStackParamList } from '../navigation/types';
 import { colors, fontFamily, palette, radius, space, textStyle } from '../theme';
 import { ApplicationStatusPill } from './ApprovalsScreen';
@@ -32,7 +34,6 @@ type Props = NativeStackScreenProps<AppStackParamList, 'ApprovalView'>;
 type Navigation = Props['navigation'];
 
 /** Stand-in for the API round trip, so the buttons show their busy state. */
-const settle = () => new Promise((resolve) => setTimeout(resolve, 600));
 
 export function ApprovalViewScreen({ navigation, route }: Props) {
   const { applicationId } = route.params;
@@ -87,11 +88,13 @@ export function ApprovalViewScreen({ navigation, route }: Props) {
             {line ? <Text style={styles.factNote}>{officerLabel(line.officer)}</Text> : null}
           </Fact>
           <Fact label={t('approvals.view.identityProof')}>
-            {customer?.proof ? (
-              <>
-                <Text style={styles.factValue}>{idTypeLabel(customer.proof.type)}</Text>
-                <Text style={styles.factNote}>{maskIdNumber(customer.proof.number)}</Text>
-              </>
+            {customer?.proofs.length ? (
+              customer.proofs.map((proof) => (
+                <View key={proof.type}>
+                  <Text style={styles.factValue}>{idTypeLabel(proof.type)}</Text>
+                  <Text style={styles.factNote}>{maskIdNumber(proof.number)}</Text>
+                </View>
+              ))
             ) : (
               <Text style={styles.factMuted}>{t('approvals.view.noProof')}</Text>
             )}
@@ -135,7 +138,13 @@ export function ApprovalViewScreen({ navigation, route }: Props) {
         </Card>
       ) : null}
 
-      {application.status === 'pending' ? (
+      {application.status === 'pending' && !isManager() ? (
+        <Card title={t('approvals.view.decision')}>
+          <View style={styles.notice}>
+            <Text style={styles.noticeText}>{t('approvals.view.awaitingManager')}</Text>
+          </View>
+        </Card>
+      ) : application.status === 'pending' ? (
         <Decision application={application} name={name} overdue={overdue > 0} navigation={navigation} />
       ) : (
         <Outcome application={application} netDisbursal={terms?.netDisbursal ?? 0} navigation={navigation} />
@@ -167,10 +176,13 @@ function Decision({
     }
     setError(undefined);
     setBusy(action);
-    // UI-only for now: PATCH /loans/:id { status } goes here.
-    await settle();
-    if (action === 'approve') approveApplication(application.id, note.trim());
-    else rejectApplication(application.id, note.trim());
+    try {
+      if (action === 'approve') await approveApplication(application.id, note.trim());
+      else await rejectApplication(application.id, note.trim());
+    } catch (failure) {
+      setError(errorMessage(failure));
+    }
+    setBusy(undefined);
   }
 
   return (
@@ -236,15 +248,20 @@ function Outcome({
   navigation: Navigation;
 }) {
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string>();
   const decidedOn = application.decidedOn ? formatDate(application.decidedOn) : '—';
   const loan = application.loanId ? loanById(application.loanId) : undefined;
   const firstDue = loan ? addMonths(loan.disbursedOn, 1) : undefined;
 
   async function disburse() {
     setBusy(true);
-    // UI-only for now: POST /loans/:id/disburse goes here.
-    await settle();
-    disburseApplication(application.id);
+    setError(undefined);
+    try {
+      await disburseApplication(application.id);
+    } catch (failure) {
+      setError(errorMessage(failure));
+    }
+    setBusy(false);
   }
 
   return (
@@ -260,13 +277,22 @@ function Outcome({
         <Text style={styles.noteText}>{application.note || '—'}</Text>
       </Card>
 
-      {application.status === 'approved' ? (
+      {application.status === 'approved' && !isManager() ? (
+        <Card title={t('approvals.view.disbursement')}>
+          <View style={styles.notice}>
+            <Text style={styles.noticeText}>{t('approvals.view.awaitingDisbursal')}</Text>
+          </View>
+        </Card>
+      ) : application.status === 'approved' ? (
         <Card title={t('approvals.view.disbursement')} subtitle={t('approvals.view.disbursementSub')}>
-          <Button
-            label={t('approvals.view.disburse', { amount: formatCurrency(netDisbursal) })}
-            loading={busy}
-            onPress={disburse}
-          />
+          <View style={styles.stack}>
+            <FormError message={error} />
+            <Button
+              label={t('approvals.view.disburse', { amount: formatCurrency(netDisbursal) })}
+              loading={busy}
+              onPress={disburse}
+            />
+          </View>
         </Card>
       ) : null}
 

@@ -5,6 +5,7 @@ import { TextField } from '../components/TextField';
 import { CheckIcon } from '../components/icons';
 import { formatCurrency } from '../lib/data';
 import { LOAN_TYPES, computeLoan, finalInstallment, type LoanType } from '../lib/loan';
+import { usePortfolio } from '../lib/usePortfolio';
 
 /** A typical line loan, so the page opens with an answer on it. */
 const EXAMPLE = { type: 'POST' as LoanType, amount: '45,000', rate: '24', tenure: '12', fee: '500' };
@@ -16,6 +17,7 @@ const digits = (value: string) => Number(value.replace(/[^\d]/g, ''));
  * nothing to validate or save — officers use it to quote a customer.
  */
 export function Playground() {
+  usePortfolio();
   const [type, setType] = useState<LoanType>(EXAMPLE.type);
   const [amount, setAmount] = useState(EXAMPLE.amount);
   const [rate, setRate] = useState(EXAMPLE.rate);

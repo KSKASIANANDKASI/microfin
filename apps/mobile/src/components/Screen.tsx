@@ -1,8 +1,13 @@
-import type { ReactNode } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useState, type ReactNode } from 'react';
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { refreshPortfolio } from '../lib/data';
+import { usePortfolio } from '../lib/usePortfolio';
 import { colors, fontFamily, space, textStyle } from '../theme';
 
-/** Scrollable body shared by the three tabs: page head, then stacked cards. */
+/**
+ * Scrollable body shared by the three tabs: page head, then stacked cards.
+ * Pull down to re-read the portfolio from the API; any change re-renders the screen.
+ */
 export function Screen({
   title,
   subtitle,
@@ -13,11 +18,24 @@ export function Screen({
   subtitle: string;
   children: ReactNode;
 }) {
+  usePortfolio();
+  const [refreshing, setRefreshing] = useState(false);
+
+  function onRefresh() {
+    setRefreshing(true);
+    refreshPortfolio()
+      .catch(() => {
+        // keep what is on screen; the next pull tries again
+      })
+      .finally(() => setRefreshing(false));
+  }
+
   return (
     <ScrollView
       style={styles.flex}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand} colors={[colors.brand]} />}
     >
       <View>
         {title ? <Text style={styles.title}>{title}</Text> : null}

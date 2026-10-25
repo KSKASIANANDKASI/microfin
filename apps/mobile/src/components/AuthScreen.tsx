@@ -12,8 +12,9 @@ import { colors, fontFamily, space, textStyle } from '../theme';
 import { Logo } from './Logo';
 
 type Props = {
-  title: string;
-  subtitle: string;
+  /** Optional — sign-in goes straight to the form under the logo. */
+  title?: string;
+  subtitle?: string;
   children: ReactNode;
   /** Rendered under the form, pinned to the bottom of the scroll content. */
   footer?: ReactNode;
@@ -34,7 +35,7 @@ export function fillTemplate(template: string, nodes: Record<string, ReactNode>)
 
 /**
  * Shared shell for every auth screen: safe-area padding, keyboard avoidance,
- * the brand lockup, and a consistent title block.
+ * the brand lockup, and a consistent title block when the screen has one.
  */
 export function AuthScreen({ title, subtitle, children, footer }: Props) {
   const insets = useSafeAreaInsets();
@@ -55,10 +56,12 @@ export function AuthScreen({ title, subtitle, children, footer }: Props) {
       >
         <Logo size={44} />
 
-        <View style={styles.head}>
-          <Text style={styles.title}>{title}</Text>
-          <Text style={styles.subtitle}>{subtitle}</Text>
-        </View>
+        {title || subtitle ? (
+          <View style={styles.head}>
+            {title ? <Text style={styles.title}>{title}</Text> : null}
+            {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+          </View>
+        ) : null}
 
         {children}
 

@@ -16,12 +16,14 @@ import {
 import { formatDate, loanTypeLabel } from '../lib/loan';
 import { useApplications } from '../lib/useApplications';
 import { LoanStatePill } from './CustomerView';
+import { usePortfolio } from '../lib/usePortfolio';
 
 const FILTERS: LoanBookFilter[] = ['all', 'active', 'overdue', 'closed'];
 const SORTS: LoanBookSort[] = ['newest', 'late', 'outstanding'];
 
 /** The whole loan book across customers and lines. */
 export function Loans() {
+  usePortfolio();
   const [query, setQuery] = useState('');
   const [state, setState] = useState<LoanBookFilter>('all');
   const [lineId, setLineId] = useState('all');

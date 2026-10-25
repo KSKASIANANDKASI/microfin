@@ -120,7 +120,7 @@ export function SignUpScreen({ navigation }: Props) {
             {fillTemplate(t('auth.signUp.legal'), {
               terms: <Text style={styles.legalLink}>{t('auth.signUp.terms')}</Text>,
               privacy: <Text style={styles.legalLink}>{t('auth.signUp.privacy')}</Text>,
-              company: 'BillionBrains Tech Ltd',
+              company: 'Billionbrains Tech Ltd',
             })}
           </Text>
         </Checkbox>

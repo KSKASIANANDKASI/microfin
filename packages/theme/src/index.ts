@@ -5,11 +5,11 @@
  * properties, see ./css) and by React Native StyleSheets. Nothing in here may
  * import from `react`, `react-native` or the DOM.
  *
- * Palette is sampled from the corporate logo: navy #062045, gold #C29A46.
+ * Palette is sampled from the Finance Easy logo: navy #062045, gold #C28E14.
  */
 
 export const palette = {
-  // Brand navy — the logo mark, primary actions, headings.
+  // Brand navy — the logo tile, primary actions, headings.
   navy900: '#04162F',
   navy800: '#062045',
   navy700: '#0B2C57',
@@ -18,13 +18,13 @@ export const palette = {
   navy200: '#8FA3C0',
   navy050: '#EDF1F8',
 
-  // Brand gold — the swoosh, accents, focus and "premium" emphasis.
-  gold700: '#9E7A2E',
-  gold600: '#B0883A',
-  gold500: '#C29A46',
-  gold400: '#D4AE5C',
-  gold200: '#EBD8A9',
-  gold050: '#FBF5E6',
+  // Brand gold — the "F" and "Easy" in the logo, accents, focus and "premium" emphasis.
+  gold700: '#8F6A0F',
+  gold600: '#A97C12',
+  gold500: '#C28E14',
+  gold400: '#D6A73A',
+  gold200: '#EED692',
+  gold050: '#FBF4E1',
 
   // Accent teal — a second series colour that reads apart from both navy and
   // gold, cool enough to sit beside the brand without competing with it.

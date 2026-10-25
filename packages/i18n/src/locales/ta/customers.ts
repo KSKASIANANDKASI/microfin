@@ -73,6 +73,8 @@ export const customers: Shape<typeof en> = {
     doorstepPin: 'வீட்டு இருப்பிடம்',
     accuracyAt: '±{metres} மீ · {time}',
     notPinned: 'பின் செய்யப்படவில்லை',
+    editPin: 'பின்னைத் திருத்து',
+    addPin: 'பின் சேர்',
     loans: 'கடன்கள்',
     loansOnRecord: {
       one: '{count} கடன் பதிவில் உள்ளது',
@@ -88,8 +90,19 @@ export const customers: Shape<typeof en> = {
     disbursedOn: '{date} அன்று வழங்கப்பட்டது',
     openLoanHint: 'கடனைத் திறக்கும்',
   },
+  location: {
+    save: 'இருப்பிடத்தைச் சேமி',
+    remove: 'பின்னை நீக்கு',
+  },
   proof: {
-    onFile: 'பதிவில் உள்ளது: {idType} {number}',
+    onFileTitle: 'பதிவில் உள்ள அடையாளங்கள்',
+    addTitle: 'அடையாளத்தைச் சேர்',
+    editTitle: '{idType} புதுப்பி',
+    addAnother: 'மற்றொரு அடையாளத்தைச் சேர்',
+    edit: 'திருத்து',
+    remove: 'நீக்கு',
+    removeConfirm: '{name} அவர்களின் {idType} {number} நீக்கவா? அதன் புகைப்படங்களும் நீக்கப்படும்.',
+    replaces: '{idType} ஏற்கனவே பதிவில் உள்ளது — சேமித்தால் அது மாற்றப்படும்.',
     none: 'இந்த வாடிக்கையாளருக்கு இன்னும் சான்று பதிவு செய்யப்படவில்லை.',
     idType: 'அடையாள வகை',
     selectIdType: 'அடையாள வகையைத் தேர்வுசெய்யவும்',
@@ -99,7 +112,7 @@ export const customers: Shape<typeof en> = {
     storedAs: '{number} எனச் சேமிக்கப்படும்',
     spacesFine: 'இடைவெளிகள் பரவாயில்லை — சேமிக்கும் முன் நீக்கப்படும்.',
     images: 'சான்றுப் புகைப்படங்கள்',
-    imagesHint: 'தெளிவான, நல்ல வெளிச்சத்தில் எடுத்த புகைப்படங்கள் — அட்டையின் நான்கு மூலைகளும் தெரிய வேண்டும்.',
+    imagesHint: 'விருப்பத்தேர்வு — தெளிவான, நல்ல வெளிச்சத்தில் எடுத்த புகைப்படங்கள்; அட்டையின் நான்கு மூலைகளும் தெரிய வேண்டும்.',
     front: 'அடையாள அட்டையின் முன்பக்கம்',
     frontHint: 'புகைப்படமும் எண்ணும் உள்ள பக்கம்.',
     back: 'அடையாள அட்டையின் பின்பக்கம்',
@@ -108,8 +121,6 @@ export const customers: Shape<typeof en> = {
     save: 'சான்றைச் சேமி',
     errors: {
       typeRequired: 'அடையாள வகையைத் தேர்வுசெய்யவும்.',
-      frontRequired: 'முன்பக்கப் புகைப்படம் தேவை.',
-      backRequired: 'இந்த அடையாளத்திற்குப் பின்பக்கப் புகைப்படம் தேவை.',
     },
   },
 };

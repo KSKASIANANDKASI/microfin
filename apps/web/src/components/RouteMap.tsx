@@ -12,21 +12,33 @@ export type RouteMapStop = {
   navigateUrl: string;
 };
 
+/** A receipt already posted today, pinned where it was posted. */
+export type RouteMapCollected = {
+  key: string;
+  name: string;
+  geo: LatLng;
+  /** Info-window lines: amount, posting time, what the pin marks. */
+  details: string[];
+};
+
 type Props = {
   office: LatLng;
   stops: RouteMapStop[];
+  collected?: RouteMapCollected[];
   /** Keyless Google embed, used when there is no API key or the key is rejected. */
   fallbackSrc: string;
   title: string;
   /**
-   * Stop to open the info window on, picked from the list below the map. `n`
-   * changes on every pick so choosing the same stop again reopens it.
+   * Pin to open the info window on, picked from the lists below the map: a
+   * stop's number, or a collected receipt's key. `n` changes on every pick so
+   * choosing the same pin again reopens it.
    */
-  focus?: { seq: number; n: number };
+  focus?: { key: string; n: number };
 };
 
-const NAVY = '#062045';
-const GOLD = '#C29A46';
+const BRAND = '#062045';
+const GOLD = '#C28E14';
+const GREEN = '#1E8E62';
 
 /**
  * Line route on Google Maps: a gold pin for the branch office, a numbered pin
@@ -34,11 +46,11 @@ const GOLD = '#C29A46';
  * joined up. Needs `VITE_GOOGLE_MAPS_API_KEY`; without one it shows the keyless
  * directions embed instead.
  */
-export function RouteMap({ office, stops, fallbackSrc, title, focus }: Props) {
+export function RouteMap({ office, stops, collected = [], fallbackSrc, title, focus }: Props) {
   const el = useRef<HTMLDivElement>(null);
   const [failed, setFailed] = useState(!MAPS_API_KEY);
-  // Markers by stop number, so the list can open one.
-  const markers = useRef(new Map<number, () => void>());
+  // Markers by stop number or receipt key, so the lists can open one.
+  const markers = useRef(new Map<string, () => void>());
 
   useEffect(() => {
     if (failed || !el.current) return;
@@ -79,7 +91,7 @@ export function RouteMap({ office, stops, fallbackSrc, title, focus }: Props) {
             position: stop.geo,
             title: `${stop.seq}. ${stop.name}`,
             label: { text: String(stop.seq), color: '#FFFFFF', fontSize: '12px', fontWeight: '700' },
-            icon: pin(g, NAVY, 13),
+            icon: pin(g, BRAND, 13),
             zIndex: 100 - stop.seq,
           });
           const open = () => {
@@ -93,9 +105,30 @@ export function RouteMap({ office, stops, fallbackSrc, title, focus }: Props) {
             info.open({ map, anchor: marker });
           };
           marker.addListener('click', open);
-          markers.current.set(stop.seq, open);
+          markers.current.set(String(stop.seq), open);
           overlays.push(marker);
           bounds.extend(stop.geo);
+        }
+
+        // Done for the day: a green tick where each receipt was posted, kept
+        // off the walking line.
+        for (const item of collected) {
+          const marker = new g.maps.Marker({
+            map,
+            position: item.geo,
+            title: item.name,
+            label: { text: '✓', color: '#FFFFFF', fontSize: '12px', fontWeight: '700' },
+            icon: pin(g, GREEN, 11),
+            zIndex: 10,
+          });
+          const open = () => {
+            info.setContent(infoContent(item.name, [...item.details, formatCoords(item.geo)]));
+            info.open({ map, anchor: marker });
+          };
+          marker.addListener('click', open);
+          markers.current.set(item.key, open);
+          overlays.push(marker);
+          bounds.extend(item.geo);
         }
 
         // Office → stops in visiting order → office. Straight lines: the order,
@@ -109,15 +142,15 @@ export function RouteMap({ office, stops, fallbackSrc, title, focus }: Props) {
               strokeOpacity: 0,
               icons: [
                 {
-                  icon: { path: 'M 0,-1 0,1', strokeOpacity: 0.8, strokeColor: NAVY, strokeWeight: 3, scale: 3 },
+                  icon: { path: 'M 0,-1 0,1', strokeOpacity: 0.8, strokeColor: BRAND, strokeWeight: 3, scale: 3 },
                   offset: '0',
                   repeat: '14px',
                 },
               ],
             }),
           );
-          map.fitBounds(bounds, 48);
         }
+        if (stops.length || collected.length) map.fitBounds(bounds, 48);
       })
       .catch(() => {
         if (!cancelled) setFailed(true);
@@ -127,13 +160,13 @@ export function RouteMap({ office, stops, fallbackSrc, title, focus }: Props) {
       cancelled = true;
       overlays.forEach((o) => o.setMap(null));
     };
-  }, [failed, office, stops]);
+  }, [failed, office, stops, collected]);
 
   useEffect(() => {
     if (!focus) return;
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     el.current?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'nearest' });
-    markers.current.get(focus.seq)?.();
+    markers.current.get(focus.key)?.();
   }, [focus]);
 
   if (failed) {

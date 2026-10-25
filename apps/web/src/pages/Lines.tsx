@@ -10,9 +10,14 @@ import {
   weekdayLabel,
 } from '../lib/data';
 import type { Line } from '../lib/data';
+import { usePortfolio } from '../lib/usePortfolio';
+import { isManager } from '../lib/session';
 
 export function Lines() {
+  usePortfolio();
   const accounts = lines.reduce((n, l) => n + l.accounts, 0);
+  // Officers see their own lines; only managers set lines up.
+  const manager = isManager();
 
   return (
     <>
@@ -24,9 +29,11 @@ export function Lines() {
             {tp('lines.accounts', accounts, { count: formatNumber(accounts) })}
           </p>
         </div>
-        <Link className="btn btn--sm" to="/lines/new">
-          {t('common.screens.newLine')}
-        </Link>
+        {manager ? (
+          <Link className="btn btn--sm" to="/lines/new">
+            {t('common.screens.newLine')}
+          </Link>
+        ) : null}
       </div>
 
       <Card padded={false}>
@@ -48,9 +55,11 @@ export function Lines() {
               <Link className="btn btn--sm btn--ghost" to={`/collection/route?line=${line.id}`}>
                 {t('collection.route.view')}
               </Link>
-              <Link className="btn btn--sm btn--ghost" to="/lines/new">
-                {t('common.actions.edit')}
-              </Link>
+              {manager ? (
+                <Link className="btn btn--sm btn--ghost" to="/lines/new">
+                  {t('common.actions.edit')}
+                </Link>
+              ) : null}
             </li>
           ))}
         </ul>

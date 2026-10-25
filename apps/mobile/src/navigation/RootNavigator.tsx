@@ -5,12 +5,15 @@ import { AuthNavigator } from './AuthNavigator';
 import { MainTabs } from './MainTabs';
 import { ApprovalViewScreen } from '../screens/ApprovalViewScreen';
 import { ApprovalsScreen } from '../screens/ApprovalsScreen';
+import { ChangePasswordScreen } from '../screens/ChangePasswordScreen';
 import { CollectPaymentScreen } from '../screens/CollectPaymentScreen';
+import { CustomerLocationScreen } from '../screens/CustomerLocationScreen';
 import { CustomerProofScreen } from '../screens/CustomerProofScreen';
 import { CustomerViewScreen } from '../screens/CustomerViewScreen';
 import { LinesScreen } from '../screens/LinesScreen';
 import { LoanViewScreen } from '../screens/LoanViewScreen';
 import { customerById } from '../lib/data';
+import { getSession } from '../lib/session';
 import { NewCustomerScreen } from '../screens/NewCustomerScreen';
 import { NewLineScreen } from '../screens/NewLineScreen';
 import { NewLoanScreen } from '../screens/NewLoanScreen';
@@ -35,7 +38,7 @@ function subScreen(title: string) {
 export function RootNavigator() {
   return (
     <Stack.Navigator
-      initialRouteName="Auth"
+      initialRouteName={getSession() ? 'Main' : 'Auth'}
       screenOptions={{
         headerShown: false,
         contentStyle: { backgroundColor: colors.bg },
@@ -44,6 +47,11 @@ export function RootNavigator() {
       <Stack.Screen name="Auth" component={AuthNavigator} />
       <Stack.Screen name="Main" component={MainTabs} />
       <Stack.Screen name="Settings" component={SettingsScreen} options={subScreen(t('common.nav.settings'))} />
+      <Stack.Screen
+        name="ChangePassword"
+        component={ChangePasswordScreen}
+        options={subScreen(t('settings.changePassword.title'))}
+      />
       <Stack.Screen name="NewLine" component={NewLineScreen} options={subScreen(t('common.screens.newLine'))} />
       <Stack.Screen name="Lines" component={LinesScreen} options={subScreen(t('common.nav.lines'))} />
       <Stack.Screen
@@ -60,6 +68,11 @@ export function RootNavigator() {
         name="CustomerProof"
         component={CustomerProofScreen}
         options={subScreen(t('common.screens.identityProof'))}
+      />
+      <Stack.Screen
+        name="CustomerLocation"
+        component={CustomerLocationScreen}
+        options={subScreen(t('common.screens.doorstepPin'))}
       />
       <Stack.Screen name="NewLoan" component={NewLoanScreen} options={subScreen(t('common.screens.newLoan'))} />
       <Stack.Screen

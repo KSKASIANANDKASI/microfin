@@ -6,6 +6,7 @@ import { ChevronDownIcon, SearchIcon } from '../components/icons';
 import { formatCurrency, lineById, lines, loanById } from '../lib/data';
 import { useCollectionSheet } from '../lib/useCollectionSheet';
 import { StatusPill } from './Dashboard';
+import { usePortfolio } from '../lib/usePortfolio';
 
 const FILTERS = ['all', 'due', 'overdue', 'collected'] as const;
 
@@ -19,6 +20,7 @@ function filterLabel(id: Filter): string {
 }
 
 export function Collection() {
+  usePortfolio();
   const [filter, setFilter] = useState<Filter>('all');
   const [lineId, setLineId] = useState<string>('all');
   const [query, setQuery] = useState('');

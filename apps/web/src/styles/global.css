@@ -257,6 +257,9 @@ a:hover {
 .field input {
   flex: 1;
   min-width: 0;
+  /* A percentage width drops the input's ~20-character intrinsic size, which otherwise
+     props every form open past the viewport on narrow phones. */
+  width: 100%;
   height: 100%;
   padding: 0 var(--space-4);
   border: 0;
@@ -374,9 +377,15 @@ a:hover {
 
 .row-between {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
+}
+
+/* Keeps the trailing item (e.g. "Forgot password?") on the right when the row wraps. */
+.row-between > :last-child {
+  margin-left: auto;
 }
 
 .checkbox {
@@ -485,14 +494,6 @@ a:hover {
   font-weight: 800;
   letter-spacing: -0.01em;
   line-height: 1;
-}
-
-.logo__tag {
-  display: block;
-  font-family: 'Poppins', 'Noto Sans Tamil', sans-serif;
-  font-weight: 600;
-  letter-spacing: 0.28em;
-  margin-top: 4px;
 }
 
 /* ============================================================== app shell */
@@ -700,11 +701,6 @@ a:hover {
   white-space: nowrap;
 }
 
-.topbar__suffix {
-  color: var(--bb-gold-600);
-  font-weight: 600;
-}
-
 .topbar__actions {
   position: relative;
   display: flex;
@@ -811,7 +807,6 @@ a:hover {
     padding: var(--space-3) var(--space-4);
   }
 
-  .topbar__suffix,
   .profilebtn__text {
     display: none;
   }
@@ -1545,6 +1540,32 @@ a:hover {
   margin-top: var(--space-4);
 }
 
+/* The open report: a full-width table above the catalogue. */
+.reportview {
+  /* A grid item: without this a wide register stretches the whole page instead of scrolling. */
+  min-width: 0;
+  margin-bottom: var(--space-5);
+  scroll-margin-top: var(--space-5);
+}
+
+.reportview th {
+  white-space: nowrap;
+}
+
+.report__actions--head {
+  margin-top: 0;
+}
+
+/* Kept on screen while the next range loads, dimmed so it isn't read as current. */
+.reportview__stale {
+  opacity: 0.5;
+}
+
+.dtable__total td {
+  font-weight: 700;
+  border-top: 2px solid var(--color-border-strong, var(--color-border));
+}
+
 /* small button variant, shared by lists and report cards */
 .btn--sm {
   width: auto;
@@ -1922,6 +1943,88 @@ a:hover {
   gap: var(--space-3);
 }
 
+/* Coordinates box and the GPS button side by side; stacked on a phone. */
+.geo__row {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.geo__row .field__control {
+  flex: 1;
+  min-width: 0;
+}
+
+.geo__row .geo__capture {
+  flex: none;
+  height: var(--size-field-height);
+}
+
+/* Place search above the pin map, and the matches it lists. */
+.geo__search {
+  margin-top: var(--space-3);
+}
+
+.geo__results {
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
+  overflow: hidden;
+}
+
+.geo__results li + li {
+  border-top: 1px solid var(--color-border);
+}
+
+.geo__results button {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: 0;
+  background: none;
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--font-size-body-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.geo__results button:hover,
+.geo__results button:focus-visible {
+  background: var(--color-bg);
+}
+
+.geo__results svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--color-text-faint);
+}
+
+.geo__map {
+  height: clamp(240px, 40vh, 380px);
+  margin-top: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+@media (max-width: 640px) {
+  .geo__row {
+    flex-direction: column;
+  }
+}
+
+.facts__action {
+  display: inline-block;
+  margin-top: var(--space-1);
+  font-size: var(--font-size-caption);
+  font-weight: 600;
+}
+
 .geo__tag {
   display: inline-flex;
   align-items: center;
@@ -2168,6 +2271,14 @@ form > .card + .card {
   color: var(--color-text-faint);
 }
 
+.facts__proof {
+  display: block;
+}
+
+.facts__proof + .facts__proof {
+  margin-top: var(--space-2);
+}
+
 .facts__muted {
   font-weight: 400;
   color: var(--color-text-faint);
@@ -2246,6 +2357,11 @@ form > .card + .card {
   color: var(--bb-success);
 }
 
+.notice--bad {
+  background: var(--bb-danger-bg);
+  color: var(--color-danger);
+}
+
 .navitem__badge {
   margin-left: auto;
   min-width: 20px;
@@ -2296,6 +2412,26 @@ form > .card + .card {
 
 .routestop__seq:hover {
   background: var(--bb-gold-200);
+}
+
+.routestop__seq--done {
+  background: var(--bb-success-bg);
+  color: var(--bb-success);
+}
+
+.routestop__seq--done:hover:not(:disabled) {
+  background: var(--bb-success-bg);
+  filter: brightness(0.95);
+}
+
+.routestop__seq--done:disabled {
+  cursor: default;
+}
+
+/* A receipt posted far from the customer's doorstep. */
+.routestop__far {
+  color: var(--color-danger);
+  font-weight: 600;
 }
 
 .routestop__coords {

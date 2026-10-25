@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { t, tp } from '@lms/i18n';
+import { FormError } from '../components/FormError';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { TextField } from '../components/TextField';
@@ -16,6 +17,8 @@ import {
   todayIso,
   type LoanType,
 } from '../lib/loan';
+import { errorMessage } from '../lib/session';
+import { usePortfolio } from '../lib/usePortfolio';
 
 type Errors = {
   customerId?: string;
@@ -37,6 +40,7 @@ const MAX_DAYS_AHEAD = 7;
 const digits = (value: string) => Number(value.replace(/[^\d]/g, ''));
 
 export function NewLoan() {
+  usePortfolio();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   // Arriving from a customer's page preselects them.
@@ -54,6 +58,7 @@ export function NewLoan() {
   const [emi, setEmi] = useState('');
   const [errors, setErrors] = useState<Errors>({});
   const [submitting, setSubmitting] = useState(false);
+  const [saveError, setSaveError] = useState<string>();
 
   const customer = customers.find((c) => c.id === customerId);
   const principal = digits(amount);
@@ -129,19 +134,25 @@ export function NewLoan() {
     setErrors(next);
     if (Object.values(next).some(Boolean)) return;
 
+    let application;
     setSubmitting(true);
-    // UI-only for now: POST /loans (status SUBMITTED) goes here.
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    const application = submitApplication({
-      customerId,
-      type,
-      principal,
-      annualRatePct: rateValue,
-      months,
-      fee: feeValue,
-      emi: emiValue,
-      disburseOn: date,
-    });
+    setSaveError(undefined);
+    try {
+      application = await submitApplication({
+        customerId,
+        type,
+        principal,
+        annualRatePct: rateValue,
+        months,
+        fee: feeValue,
+        emi: emiValue,
+        disburseOn: date,
+      });
+    } catch (error) {
+      setSaveError(errorMessage(error));
+      setSubmitting(false);
+      return;
+    }
     setSubmitting(false);
     navigate(`/approvals/${application.id}`);
   }
@@ -207,7 +218,7 @@ export function NewLoan() {
               />
             </div>
 
-            {customer && !customer.proof ? (
+            {customer && !customer.proofs.length ? (
               <p className="notice">
                 {t('loans.new.noProof', { name: customer.name })}{' '}
                 <Link to={`/customers/${customer.id}/proof`}>{t('loans.new.captureProof')}</Link>
@@ -369,6 +380,7 @@ export function NewLoan() {
           </div>
         </Card>
 
+        <FormError message={saveError} />
         <div className="formactions">
           <Link className="btn btn--sm btn--ghost" to="/customers">
             {t('common.actions.cancel')}

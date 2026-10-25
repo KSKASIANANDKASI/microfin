@@ -1,6 +1,7 @@
 import { t } from '@lms/i18n';
 import { Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import { colors, fontFamily, palette, radius, space, textStyle } from '../theme';
+import { ApiError } from '../lib/session';
 import { CheckIcon } from './icons';
 
 export function Checkbox({
@@ -25,7 +26,7 @@ export function Checkbox({
       <View style={[styles.box, checked && styles.boxChecked]}>
         {checked ? <CheckIcon size={13} color={colors.textOnBrand} /> : null}
       </View>
-      <View style={styles.flex}>{children}</View>
+      <View style={styles.label}>{children}</View>
     </Pressable>
   );
 }
@@ -55,6 +56,21 @@ export function Notice({ children }: { children: React.ReactNode }) {
       <Text style={styles.noticeText}>{children}</Text>
     </View>
   );
+}
+
+/** A failed save, in the server's words where it gave any. */
+export function FormError({ message }: { message?: string }) {
+  if (!message) return null;
+  return (
+    <Text style={styles.formError} accessibilityRole="alert">
+      {message}
+    </Text>
+  );
+}
+
+/** The copy to show for anything a save can throw. */
+export function errorMessage(error: unknown): string {
+  return error instanceof ApiError ? error.message : t('auth.errors.generic');
 }
 
 /** 0–4 strength meter, mirroring the web implementation. */
@@ -102,7 +118,16 @@ export function PasswordStrength({ value }: { value: string }) {
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
+  formError: {
+    ...textStyle('bodySm'),
+    color: colors.danger,
+    padding: space[4],
+    borderRadius: radius.md,
+    backgroundColor: palette.dangerBg,
+  },
+  // Shrink-only: with `flex: 1` the label grows to fill its row on native, pushing
+  // anything beside the checkbox (Sign In's "Forgot password?") off-screen.
+  label: { flexShrink: 1 },
   checkboxRow: { flexDirection: 'row', alignItems: 'flex-start', gap: space[3] },
   box: {
     width: 20,

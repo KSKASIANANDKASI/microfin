@@ -1,7 +1,7 @@
 import { t } from '@lms/i18n';
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { CameraIcon, UploadIcon } from './icons';
-import type { ProofImage } from '../lib/data';
+import { fetchObjectUrl, type ProofImage } from '../lib/data';
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const ACCEPT = 'image/jpeg,image/png,image/webp,image/heic';
@@ -15,6 +15,34 @@ type Props = {
 };
 
 /**
+ * The `src` for a proof photo. A fresh pick is already a `blob:` URL; one
+ * stored by the API needs the Authorization header, which `<img>` cannot send,
+ * so it is fetched and shown through an object URL of its own.
+ */
+function useProofSrc(image?: ProofImage): string | undefined {
+  const [src, setSrc] = useState<string>();
+  useEffect(() => {
+    if (!image?.stored) return;
+    let url: string | undefined;
+    let live = true;
+    fetchObjectUrl(image.uri)
+      .then((next) => {
+        url = next;
+        if (live) setSrc(next);
+        else URL.revokeObjectURL(next);
+      })
+      .catch(() => {
+        // the thumbnail just stays blank; the file is still on record
+      });
+    return () => {
+      live = false;
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [image?.uri, image?.stored]);
+  return image?.stored ? src : image?.uri;
+}
+
+/**
  * Captures one page of an ID card. Officers work on a phone, so the camera is
  * offered first; the file picker is there for desk work and re-uploads.
  */
@@ -22,6 +50,8 @@ export function ImageField({ label, hint, value, error, onChange }: Props) {
   const cameraRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [fileError, setFileError] = useState<string>();
+  // Called on every render, photo or not — hooks can't sit behind the `value ?` below.
+  const src = useProofSrc(value);
 
   // The preview URL only lives as long as the page does — release the previous
   // one whenever it is replaced, and the last one on unmount.
@@ -64,7 +94,7 @@ export function ImageField({ label, hint, value, error, onChange }: Props) {
 
       {value ? (
         <div className="upload">
-          <img className="upload__thumb" src={value.uri} alt={t('common.field.preview', { label })} />
+          <img className="upload__thumb" src={src} alt={t('common.field.preview', { label })} />
           <span className="upload__body">
             <b>{value.name}</b>
             <span className="upload__meta">{value.size ? formatBytes(value.size) : t('common.upload.uploaded')}</span>

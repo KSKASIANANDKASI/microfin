@@ -2,7 +2,9 @@ import { t } from '@lms/i18n';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LogoMark } from './Logo';
-import { notifications, user } from '../lib/data';
+import { clearPortfolio, notifications, user } from '../lib/data';
+import { usePortfolio } from '../lib/usePortfolio';
+import { clearSession } from '../lib/session';
 import {
   BellIcon,
   ChevronDownIcon,
@@ -22,6 +24,7 @@ export function TopBar({
   onMenuToggle: () => void;
   menuOpen: boolean;
 }) {
+  usePortfolio();
   const navigate = useNavigate();
   const [panel, setPanel] = useState<Panel>(null);
   const barRef = useRef<HTMLElement>(null);
@@ -66,7 +69,7 @@ export function TopBar({
           </button>
           <LogoMark size={34} />
           <span className="topbar__name">
-            BillionBrains<span className="topbar__suffix"> Tech Ltd</span>
+            Finance Easy
           </span>
         </div>
 
@@ -161,7 +164,11 @@ export function TopBar({
                 type="button"
                 className="menuitem menuitem--danger"
                 role="menuitem"
-                onClick={() => navigate('/sign-in')}
+                onClick={() => {
+                  clearSession();
+                  clearPortfolio();
+                  navigate('/sign-in', { replace: true });
+                }}
               >
                 <LogOutIcon /> {t('common.topbar.signOut')}
               </button>

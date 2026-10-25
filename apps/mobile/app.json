@@ -1,12 +1,13 @@
 {
   "expo": {
-    "name": "BillionBrains",
+    "name": "Finance Easy",
     "slug": "billionbrains-lms",
     "scheme": "billionbrains",
     "version": "0.1.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "userInterfaceStyle": "light",
     "backgroundColor": "#F7F8FB",
+    "primaryColor": "#062045",
     "assetBundlePatterns": [
       "**/*"
     ],
@@ -18,7 +19,7 @@
       "package": "ltd.billionbrains.lms",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#FDFDFB"
+        "backgroundColor": "#062045"
       }
     },
     "icon": "./assets/icon.png",
@@ -31,25 +32,28 @@
         "expo-splash-screen",
         {
           "image": "./assets/splash.png",
-          "imageWidth": 260,
+          "imageWidth": 300,
           "resizeMode": "contain",
-          "backgroundColor": "#FDFDFB"
+          "backgroundColor": "#FFFFFF"
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "BillionBrains needs your photo library to attach an existing scan of the customer’s ID.",
-          "cameraPermission": "BillionBrains uses the camera to photograph the customer’s ID proof."
+          "photosPermission": "Finance Easy needs your photo library to attach an existing scan of the customer’s ID.",
+          "cameraPermission": "Finance Easy uses the camera to photograph the customer’s ID proof."
         }
       ],
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "BillionBrains uses your location to pin a customer’s doorstep when you onboard them."
+          "locationWhenInUsePermission": "Finance Easy uses your location to pin a customer’s doorstep when you onboard them."
         }
       ],
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "expo-screen-orientation",
+      "expo-font",
+      "expo-status-bar"
     ]
   }
 }

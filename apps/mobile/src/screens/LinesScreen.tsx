@@ -12,6 +12,7 @@ import {
   weekdayLabel,
 } from '../lib/data';
 import type { Line } from '../lib/data';
+import { isManager } from '../lib/session';
 import type { AppStackParamList } from '../navigation/types';
 import { colors, fontFamily, palette, radius, sizing, space, textStyle } from '../theme';
 
@@ -19,6 +20,8 @@ type Props = NativeStackScreenProps<AppStackParamList, 'Lines'>;
 
 export function LinesScreen({ navigation }: Props) {
   const accounts = lines.reduce((n, l) => n + l.accounts, 0);
+  // Officers see their own lines; only managers set lines up.
+  const manager = isManager();
 
   return (
     <Screen
@@ -26,13 +29,15 @@ export function LinesScreen({ navigation }: Props) {
         count: formatNumber(accounts),
       })}`}
     >
-      <Pressable
-        style={({ pressed }) => [styles.newBtn, pressed && styles.newBtnPressed]}
-        onPress={() => navigation.navigate('NewLine')}
-        accessibilityRole="button"
-      >
-        <Text style={styles.newBtnText}>{t('common.screens.newLine')}</Text>
-      </Pressable>
+      {manager ? (
+        <Pressable
+          style={({ pressed }) => [styles.newBtn, pressed && styles.newBtnPressed]}
+          onPress={() => navigation.navigate('NewLine')}
+          accessibilityRole="button"
+        >
+          <Text style={styles.newBtnText}>{t('common.screens.newLine')}</Text>
+        </Pressable>
+      ) : null}
 
       <Card padded={false}>
         {lines.map((line) => (
@@ -55,13 +60,15 @@ export function LinesScreen({ navigation }: Props) {
               <Text style={styles.due}>
                 {t('lines.dueToday', { amount: formatCurrency(line.due) })}
               </Text>
-              <Pressable
-                style={styles.editBtn}
-                onPress={() => navigation.navigate('NewLine')}
-                accessibilityRole="button"
-              >
-                <Text style={styles.editText}>{t('common.actions.edit')}</Text>
-              </Pressable>
+              {manager ? (
+                <Pressable
+                  style={styles.editBtn}
+                  onPress={() => navigation.navigate('NewLine')}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.editText}>{t('common.actions.edit')}</Text>
+                </Pressable>
+              ) : null}
             </View>
           </View>
         ))}

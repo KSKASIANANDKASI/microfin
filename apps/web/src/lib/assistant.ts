@@ -1,12 +1,11 @@
 /**
- * Client for the analytics assistant (`POST /ai/chat` on apps/api). The reply
- * streams back as server-sent events, one JSON object per `data:` line.
+ * Client for the analytics assistant (`POST /api/v1/ai/chat`). The API builds
+ * the portfolio snapshot itself from the database; the reply streams back as
+ * server-sent events, one JSON object per `data:` line.
  */
 
 import { getLocale } from '@lms/i18n';
-import { portfolioSnapshot } from './analytics';
-
-export const API_URL: string = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+import { API_URL, authHeaders } from './session';
 
 export type ChatMessage = { role: 'user' | 'assistant'; content: string };
 
@@ -21,16 +20,17 @@ export async function askAssistant(
   onText: (text: string) => void,
   signal?: AbortSignal,
 ): Promise<void> {
-  const response = await fetch(`${API_URL}/ai/chat`, {
+  const response = await fetch(`${API_URL}/api/v1/ai/chat`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ locale: getLocale(), messages, snapshot: portfolioSnapshot() }),
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ locale: getLocale(), messages }),
     signal,
   });
 
   if (!response.ok || !response.body) {
     const body = await response.json().catch(() => undefined);
-    throw new Error((body as { error?: string } | undefined)?.error ?? `HTTP ${response.status}`);
+    const error = body as { error?: string; message?: string } | undefined;
+    throw new Error(error?.message ?? error?.error ?? `HTTP ${response.status}`);
   }
 
   const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();

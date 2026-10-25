@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { t, tp } from '@lms/i18n';
+import { FormError } from '../components/FormError';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { ArrowLeftIcon, IdIcon } from '../components/icons';
@@ -22,12 +23,14 @@ import {
 } from '../lib/data';
 import { addMonths, computeLoan, formatDate, loanTypeLabel } from '../lib/loan';
 import { useApplications } from '../lib/useApplications';
+import { errorMessage, isManager } from '../lib/session';
 import { ApplicationStatusPill } from './Approvals';
+import { usePortfolio } from '../lib/usePortfolio';
 
 /** Stand-in for the API round trip, so the buttons show their busy state. */
-const settle = () => new Promise((resolve) => setTimeout(resolve, 600));
 
 export function ApprovalView() {
+  usePortfolio();
   const { id = '' } = useParams();
   // Subscribing keeps the page in step as the application moves through its states.
   const application = useApplications().find((a) => a.id === id);
@@ -93,11 +96,13 @@ function Review({ application }: { application: LoanApplication }) {
               {line ? <span className="facts__note">{officerLabel(line.officer)}</span> : null}
             </Fact>
             <Fact label={t('approvals.view.identityProof')}>
-              {customer?.proof ? (
-                <>
-                  {idTypeLabel(customer.proof.type)}
-                  <span className="facts__note">{maskIdNumber(customer.proof.number)}</span>
-                </>
+              {customer?.proofs.length ? (
+                customer.proofs.map((proof) => (
+                  <span key={proof.type} className="facts__proof">
+                    {idTypeLabel(proof.type)}
+                    <span className="facts__note">{maskIdNumber(proof.number)}</span>
+                  </span>
+                ))
               ) : (
                 <span className="facts__muted">{t('approvals.view.noProof')}</span>
               )}
@@ -143,7 +148,11 @@ function Review({ application }: { application: LoanApplication }) {
         </Card>
       </div>
 
-      {application.status === 'pending' ? (
+      {application.status === 'pending' && !isManager() ? (
+        <Card title={t('approvals.view.decision')}>
+          <p className="notice">{t('approvals.view.awaitingManager')}</p>
+        </Card>
+      ) : application.status === 'pending' ? (
         <Decision application={application} name={name} overdue={overdue > 0} />
       ) : (
         <Outcome application={application} netDisbursal={terms?.netDisbursal ?? 0} />
@@ -165,10 +174,13 @@ function Decision({ application, name, overdue }: { application: LoanApplication
     }
     setError(undefined);
     setBusy(action);
-    // UI-only for now: PATCH /loans/:id { status } goes here.
-    await settle();
-    if (action === 'approve') approveApplication(application.id, note.trim());
-    else rejectApplication(application.id, note.trim());
+    try {
+      if (action === 'approve') await approveApplication(application.id, note.trim());
+      else await rejectApplication(application.id, note.trim());
+    } catch (failure) {
+      setError(errorMessage(failure));
+    }
+    setBusy(undefined);
   }
 
   return (
@@ -233,13 +245,18 @@ function Decision({ application, name, overdue }: { application: LoanApplication
 
 function Outcome({ application, netDisbursal }: { application: LoanApplication; netDisbursal: number }) {
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string>();
   const decidedOn = application.decidedOn ? formatDate(application.decidedOn) : '—';
 
   async function disburse() {
     setBusy(true);
-    // UI-only for now: POST /loans/:id/disburse goes here.
-    await settle();
-    disburseApplication(application.id);
+    setError(undefined);
+    try {
+      await disburseApplication(application.id);
+    } catch (failure) {
+      setError(errorMessage(failure));
+    }
+    setBusy(false);
   }
 
   const loanId = application.loanId;
@@ -259,8 +276,13 @@ function Outcome({ application, netDisbursal }: { application: LoanApplication; 
         <p className="empty empty--left">{application.note || '—'}</p>
       </Card>
 
-      {application.status === 'approved' ? (
+      {application.status === 'approved' && !isManager() ? (
+        <Card title={t('approvals.view.disbursement')}>
+          <p className="notice">{t('approvals.view.awaitingDisbursal')}</p>
+        </Card>
+      ) : application.status === 'approved' ? (
         <Card title={t('approvals.view.disbursement')} subtitle={t('approvals.view.disbursementSub')}>
+          <FormError message={error} />
           <div className="formactions">
             <Button type="button" loading={busy} onClick={disburse}>
               {t('approvals.view.disburse', { amount: formatCurrency(netDisbursal) })}

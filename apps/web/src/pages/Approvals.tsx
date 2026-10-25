@@ -10,6 +10,7 @@ import {
 } from '../lib/data';
 import { formatDate, loanTypeLabel } from '../lib/loan';
 import { useApplications } from '../lib/useApplications';
+import { usePortfolio } from '../lib/usePortfolio';
 
 const FILTERS: ApplicationStatus[] = ['pending', 'approved', 'disbursed', 'rejected'];
 
@@ -26,6 +27,7 @@ export function ApplicationStatusPill({ status }: { status: ApplicationStatus })
 
 /** The approval queue. The filter lives in the URL so Back from a review keeps it. */
 export function Approvals() {
+  usePortfolio();
   const applications = useApplications();
   const [params, setParams] = useSearchParams();
   const requested = params.get('status');

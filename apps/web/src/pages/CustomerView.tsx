@@ -16,8 +16,10 @@ import {
 } from '../lib/data';
 import { formatDate, loanTypeLabel } from '../lib/loan';
 import { CUSTOMER_STATUS } from './Customers';
+import { usePortfolio } from '../lib/usePortfolio';
 
 export function CustomerView() {
+  usePortfolio();
   const { id = '' } = useParams();
   const customer = customerById(id);
 
@@ -63,7 +65,7 @@ export function CustomerView() {
         title={t('customers.view.profile')}
         action={
           <Link className="btn btn--sm btn--ghost" to={`/customers/${customer.id}/proof`}>
-            <IdIcon size={14} /> {customer.proof ? t('customers.view.updateProof') : t('customers.list.addProof')}
+            <IdIcon size={14} /> {customer.proofs.length ? t('customers.view.updateProof') : t('customers.list.addProof')}
           </Link>
         }
       >
@@ -82,11 +84,13 @@ export function CustomerView() {
           </Fact>
           <Fact label={t('customers.view.requestedAmount')}>{formatCurrency(customer.requestedAmount)}</Fact>
           <Fact label={t('customers.view.identityProof')}>
-            {customer.proof ? (
-              <>
-                {idTypeLabel(customer.proof.type)}
-                <span className="facts__note">{maskIdNumber(customer.proof.number)}</span>
-              </>
+            {customer.proofs.length ? (
+              customer.proofs.map((proof) => (
+                <span key={proof.type} className="facts__proof">
+                  {idTypeLabel(proof.type)}
+                  <span className="facts__note">{maskIdNumber(proof.number)}</span>
+                </span>
+              ))
             ) : (
               <span className="facts__muted">{t('customers.view.notCaptured')}</span>
             )}
@@ -109,6 +113,9 @@ export function CustomerView() {
             ) : (
               <span className="facts__muted">{t('customers.view.notPinned')}</span>
             )}
+            <Link className="facts__action" to={`/customers/${customer.id}/location`}>
+              {customer.geo ? t('customers.view.editPin') : t('customers.view.addPin')}
+            </Link>
           </Fact>
         </dl>
       </Card>

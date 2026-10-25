@@ -31,25 +31,26 @@ import {
 } from '../lib/data';
 import { useApplications } from '../lib/useApplications';
 import { useCollectionSheet } from '../lib/useCollectionSheet';
+import { usePortfolio } from '../lib/usePortfolio';
 import { formatDayHeading } from '../lib/loan';
 import { colors, fontFamily, palette, radius, space, textStyle } from '../theme';
 
-const current = arrears.find((a) => a.tone === 'good')!;
-const overdue = arrears.filter((a) => a.tone !== 'good');
-// Scale the bars to each other: `current` is ~70x larger and would flatten both
-// overdue buckets into invisible slivers.
-const overdueMax = Math.max(...overdue.map((a) => a.amount));
-const totalOutstanding = arrears.reduce((sum, a) => sum + a.amount, 0);
-
 export function DashboardScreen() {
   const navigation = useNavigation<any>();
+  usePortfolio();
+  const current = arrears.find((a) => a.tone === 'good') ?? { accounts: 0, amount: 0 };
+  const overdue = arrears.filter((a) => a.tone !== 'good');
+  // Scale the bars to each other: `current` is far larger and would flatten both
+  // overdue buckets into invisible slivers.
+  const overdueMax = Math.max(1, ...overdue.map((a) => a.amount));
+  const totalOutstanding = arrears.reduce((sum, a) => sum + a.amount, 0);
   const pendingApprovals = useApplications().filter((a) => a.status === 'pending').length;
   const rows = useCollectionSheet();
   const collected = rows.filter((i) => i.status === 'collected').length;
   const sheet = rows.slice(0, 5);
   // `{amount}` is left unfilled so the figure can be rendered bold between the halves.
   const [currentBefore = '', currentAfter = ''] = tp('dashboard.arrears.current', current.accounts, {
-    percent: ((current.amount / totalOutstanding) * 100).toFixed(1),
+    percent: (totalOutstanding ? (current.amount / totalOutstanding) * 100 : 0).toFixed(1),
     count: formatNumber(current.accounts),
   }).split('{amount}');
 
@@ -84,7 +85,7 @@ export function DashboardScreen() {
 
       <View style={styles.kpis}>
         {kpis.map((kpi) => {
-          const Trend = kpi.delta >= 0 ? TrendUpIcon : TrendDownIcon;
+          const Trend = (kpi.delta ?? 0) >= 0 ? TrendUpIcon : TrendDownIcon;
           const tone = kpi.deltaGood ? colors.success : colors.danger;
           const accent = KPI_ACCENTS[kpi.id];
           const KpiIcon = KPI_ICONS[kpi.id];
@@ -105,17 +106,19 @@ export function DashboardScreen() {
                 </View>
               </View>
               <Text style={styles.kpiValue}>
-                {'currency' in kpi && kpi.currency === false
+                {kpi.currency === false
                   ? formatNumber(kpi.value)
                   : formatCurrency(kpi.value, true)}
               </Text>
-              <View style={styles.kpiDelta}>
-                <Trend color={tone} />
-                <Text style={[styles.kpiDeltaText, { color: tone }]}>
-                  {Math.abs(kpi.delta)}%
-                </Text>
-                <Text style={styles.kpiNote}>{kpi.note}</Text>
-              </View>
+              {kpi.delta != null ? (
+                <View style={styles.kpiDelta}>
+                  <Trend color={tone} />
+                  <Text style={[styles.kpiDeltaText, { color: tone }]}>
+                    {Math.abs(kpi.delta)}%
+                  </Text>
+                  <Text style={styles.kpiNote}>{kpi.note}</Text>
+                </View>
+              ) : null}
             </View>
           );
         })}

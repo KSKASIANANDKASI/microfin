@@ -8,7 +8,7 @@ import { Card } from '../components/Card';
 import { Screen } from '../components/Screen';
 import { Avatar } from '../components/rows';
 import { IdIcon, PinIcon, SearchIcon } from '../components/icons';
-import { customers, formatCurrency, idTypeLabel, lineById, lines } from '../lib/data';
+import { customers, formatCurrency, idTypeLabel, lineById, lines, proofLabels } from '../lib/data';
 import type { Customer } from '../lib/data';
 import type { AppStackParamList, MainTabParamList } from '../navigation/types';
 import { colors, fontFamily, palette, radius, sizing, space, textStyle } from '../theme';
@@ -39,7 +39,7 @@ export function CustomersScreen({ navigation }: Props) {
         customer.phone.includes(needle) ||
         customer.parentName.toLowerCase().includes(needle) ||
         customer.address.toLowerCase().includes(needle) ||
-        (customer.proof?.number.toLowerCase().includes(needle) ?? false)
+        customer.proofs.some((proof) => proof.number.toLowerCase().includes(needle))
       );
     });
   }, [lineId, query]);
@@ -108,6 +108,7 @@ function CustomerRow({
   navigation: Props['navigation'];
 }) {
   const status = CUSTOMER_STATUS[customer.status];
+  const first = customer.proofs[0];
 
   return (
     <View style={styles.row}>
@@ -139,17 +140,19 @@ function CustomerRow({
           onPress={() => navigation.navigate('CustomerProof', { customerId: customer.id })}
           accessibilityRole="button"
           accessibilityLabel={
-            customer.proof
+            first
               ? t('customers.list.proofOnFileFor', {
-                  idType: idTypeLabel(customer.proof.type),
+                  idType: proofLabels(customer.proofs),
                   name: customer.name,
                 })
               : t('customers.list.addProofFor', { name: customer.name })
           }
         >
-          <IdIcon size={13} color={customer.proof ? colors.brand : colors.textFaint} />
-          <Text style={[styles.tagText, styles.tagTextProof, !customer.proof && styles.tagTextOff]}>
-            {customer.proof ? idTypeLabel(customer.proof.type) : t('customers.list.addProof')}
+          <IdIcon size={13} color={first ? colors.brand : colors.textFaint} />
+          <Text style={[styles.tagText, styles.tagTextProof, !first && styles.tagTextOff]}>
+            {first
+              ? `${idTypeLabel(first.type)}${customer.proofs.length > 1 ? ` +${customer.proofs.length - 1}` : ''}`
+              : t('customers.list.addProof')}
           </Text>
         </Pressable>
 

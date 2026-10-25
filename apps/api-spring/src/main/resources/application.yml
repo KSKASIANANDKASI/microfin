@@ -1,0 +1,69 @@
+spring:
+  application:
+    name: lms-api
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/lms}
+    username: ${DB_USERNAME:lms}
+    password: ${DB_PASSWORD}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate.jdbc.time_zone: UTC
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 12MB
+  mvc:
+    async:
+      # The AI assistant streams its answer; allow long replies.
+      request-timeout: 5m
+  mail:
+    # SMTP server for outgoing mail (password reset links). Blank host = nothing is sent and the
+    # API only logs that a message was due. Port 587 uses STARTTLS; for 465 set MAIL_SSL=true and
+    # MAIL_STARTTLS=false.
+    host: ${MAIL_HOST:}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail.smtp.auth: ${MAIL_SMTP_AUTH:true}
+      mail.smtp.starttls.enable: ${MAIL_STARTTLS:true}
+      mail.smtp.ssl.enable: ${MAIL_SSL:false}
+      mail.smtp.connectiontimeout: 10000
+      mail.smtp.timeout: 10000
+      mail.smtp.writetimeout: 10000
+
+server:
+  port: ${PORT:4000}
+  tomcat:
+    # Read past the multipart limits before answering, so an oversized photo gets a
+    # FILE_TOO_LARGE reply instead of a reset connection (which clients show as offline).
+    max-swallow-size: 25MB
+
+lms:
+  zone: ${LMS_ZONE:Asia/Kolkata}
+  auth:
+    # Base64, 32+ bytes: `openssl rand -base64 48`. Blank = random key per start.
+    jwt-secret: ${JWT_SECRET:}
+    access-ttl: ${JWT_ACCESS_TTL:8h}
+    remember-ttl: ${MOBILE_JWT_TTL:30d}
+    reset-ttl: 30m
+    dev-echo-reset-token: false
+  cors:
+    origins: ${CORS_ORIGINS:http://localhost:5173,http://localhost:8081}
+  storage:
+    dir: ${LMS_STORAGE_DIR:./data/uploads}
+  kyc:
+    # Base64 AES key that encrypts ID numbers at rest: `openssl rand -base64 32`.
+    # Changing it makes existing ID numbers unreadable.
+    encryption-key: ${KYC_ENCRYPTION_KEY}
+  ai:
+    api-key: ${ANTHROPIC_API_KEY:}
+    model: ${ANTHROPIC_MODEL:claude-opus-5}
+  mail:
+    # Sender shown on outgoing mail. Most SMTP providers only accept an address they have verified.
+    from: "${MAIL_FROM:Finance Easy <no-reply@localhost>}"
+    # The web app's reset page; the emailed link appends ?token=…
+    reset-url: ${MAIL_RESET_URL:http://localhost:5173/reset-password}

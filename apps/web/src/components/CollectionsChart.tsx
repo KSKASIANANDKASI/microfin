@@ -12,12 +12,7 @@ const PAD_TOP = 14;
 const BAR_GAP = 2;
 const CAP = 4;
 
-const max = Math.max(...collectionsWeek.map((d) => d.amount), dailyTarget) * 1.12;
 const plotWidth = WIDTH - PAD_LEFT - PAD_RIGHT;
-const slot = plotWidth / collectionsWeek.length;
-const barWidth = Math.min(40, slot - BAR_GAP * 2);
-const yOf = (value: number) => PAD_TOP + (1 - value / max) * (PLOT_HEIGHT - PAD_TOP);
-const ticks = [0, 0.25, 0.5, 0.75, 1].map((f) => f * max);
 
 /** A bar with a rounded top and a square base, anchored to the baseline. */
 function barPath(x: number, y: number, w: number, h: number) {
@@ -29,6 +24,14 @@ export function CollectionsChart() {
   const [active, setActive] = useState<number | null>(null);
   const [view, setView] = useState<'chart' | 'table'>('chart');
   const titleId = useId();
+
+  if (collectionsWeek.length === 0) return null;
+  // Read at render: the week arrives from GET /dashboard after sign-in.
+  const max = Math.max(1, ...collectionsWeek.map((d) => d.amount), dailyTarget) * 1.12;
+  const slot = plotWidth / collectionsWeek.length;
+  const barWidth = Math.min(40, slot - BAR_GAP * 2);
+  const yOf = (value: number) => PAD_TOP + (1 - value / max) * (PLOT_HEIGHT - PAD_TOP);
+  const ticks = [0, 0.25, 0.5, 0.75, 1].map((f) => f * max);
   const peak = collectionsWeek.reduce((a, b) => (b.amount > a.amount ? b : a));
 
   if (view === 'table') {

@@ -1,0 +1,2297 @@
+{
+  "info": {
+    "name": "Microfin LMS API",
+    "description": "Every endpoint of the Spring Boot API in `apps/api-spring` (`/api/v1`). See `docs/API_MANUAL.md`.\n\n**Setup.** Start the API with the `dev` profile (`npm run dev:api:spring`) so the demo branch is seeded, then run **Auth → Sign in**. The token is saved to the `token` collection variable and sent as `Authorization: Bearer {{token}}` on every other request.\n\n**Order.** The folders run top to bottom as one flow (Collection Runner or `newman run`): requests save the ids they create (`lineId`, `customerId`, `applicationId`, `loanId`, ...) for the requests after them.\n\n**Roles.** The default login is the demo manager. Sign in as `saravanan@demo.lms` to see the 403s a loan officer gets on manager-only routes.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// \"Today\" as the API sees it (LMS_ZONE, Asia/Kolkata by default).",
+          "const ist = new Date(Date.now() + 5.5 * 3600 * 1000);",
+          "pm.collectionVariables.set('today', ist.toISOString().slice(0, 10));"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:4000"
+    },
+    {
+      "key": "email",
+      "value": "anitha@demo.lms"
+    },
+    {
+      "key": "password",
+      "value": "Demo@12345"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "today",
+      "value": ""
+    },
+    {
+      "key": "lineId",
+      "value": "L01"
+    },
+    {
+      "key": "customerId",
+      "value": "C-0005"
+    },
+    {
+      "key": "applicationId",
+      "value": "APP-3101"
+    },
+    {
+      "key": "rejectApplicationId",
+      "value": "APP-3104"
+    },
+    {
+      "key": "loanId",
+      "value": "LN-20455"
+    },
+    {
+      "key": "officerId",
+      "value": "3"
+    },
+    {
+      "key": "userId",
+      "value": ""
+    },
+    {
+      "key": "payLoanId",
+      "value": ""
+    },
+    {
+      "key": "paySeq",
+      "value": ""
+    },
+    {
+      "key": "clientOpId",
+      "value": ""
+    },
+    {
+      "key": "signupEmail",
+      "value": ""
+    },
+    {
+      "key": "signupToken",
+      "value": ""
+    },
+    {
+      "key": "resetToken",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "description": "Liveness probe. No `/api/v1` prefix, no token.",
+      "item": [
+        {
+          "name": "Health",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Returns `{ \"ok\": true }`.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "description": "Sign-up, sign-in and password management. Sign-up, sign-in, forgot and reset are public.",
+      "item": [
+        {
+          "name": "Sign in",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('token', body.token);",
+                  "pm.test('token saved', () => pm.expect(body.token).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/sign-in",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "sign-in"
+              ]
+            },
+            "description": "Email + password → JWT. `remember: true` issues the long-lived token (`MOBILE_JWT_TTL`, 30 days) instead of the normal one (`JWT_ACCESS_TTL`, 8 hours).\n\nErrors: `401 BAD_CREDENTIALS`, `403 FORBIDDEN` (suspended), `429 TOO_MANY_ATTEMPTS` after 5 failures in 15 minutes.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\",\n  \"remember\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Me",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "me"
+              ]
+            },
+            "description": "The signed-in user."
+          },
+          "response": []
+        },
+        {
+          "name": "Sign up (new company)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('signupEmail', 'admin+' + Date.now() + '@postman.test');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 201', () => pm.expect(pm.response.code).to.be.oneOf([201]));",
+                  "pm.collectionVariables.set('signupToken', pm.response.json().token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/sign-up",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "sign-up"
+              ]
+            },
+            "description": "Registers a new company and its first user, an ADMIN, and signs them in. The new company is empty and fully isolated from the demo one.\n\nThe session is kept in `signupToken` so it does not replace the demo login. Error: `409 EMAIL_TAKEN`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"companyName\": \"Postman Finance\",\n  \"fullName\": \"Postman Admin\",\n  \"email\": \"{{signupEmail}}\",\n  \"phone\": \"9876543210\",\n  \"password\": \"Postman@123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Forgot password",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "const body = pm.response.json();",
+                  "if (body.devResetToken) pm.collectionVariables.set('resetToken', body.devResetToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/forgot-password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "forgot-password"
+              ]
+            },
+            "description": "Always answers `{ \"sent\": true }`, whether or not the email has an account. No mail is sent yet; with the `dev` profile the reset token comes back as `devResetToken` so the flow can be tried.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{signupEmail}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Reset password",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 204', () => pm.expect(pm.response.code).to.be.oneOf([204]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/reset-password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "reset-password"
+              ]
+            },
+            "description": "Sets a new password from a reset token (valid 30 minutes, single use). Every token issued before the reset stops working. Error: `400 RESET_LINK_INVALID`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{resetToken}}\",\n  \"password\": \"Postman@456\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Sign in (reset account)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.collectionVariables.set('signupToken', pm.response.json().token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/sign-in",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "sign-in"
+              ]
+            },
+            "description": "Signs the new company's admin back in with the password just set.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{signupEmail}}\",\n  \"password\": \"Postman@456\",\n  \"remember\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Change password",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.collectionVariables.set('signupToken', pm.response.json().token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/change-password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "change-password"
+              ]
+            },
+            "description": "Changes the caller's own password and returns a fresh session; tokens issued earlier stop working. Runs as the sign-up account so the demo login is untouched. Error: `400 WRONG_PASSWORD`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"Postman@456\",\n  \"newPassword\": \"Postman@789\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{signupToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Staff & company",
+      "description": "Staff accounts and company settings. Creating and editing need MANAGER or ADMIN; only an ADMIN may create or change MANAGER and ADMIN accounts.",
+      "item": [
+        {
+          "name": "List users",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users"
+              ]
+            },
+            "description": "Manager only. Every staff account of the company, by name."
+          },
+          "response": []
+        },
+        {
+          "name": "Create user",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 201', () => pm.expect(pm.response.code).to.be.oneOf([201]));",
+                  "pm.collectionVariables.set('userId', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users"
+              ]
+            },
+            "description": "Manager only. `role`: `ADMIN` | `MANAGER` | `LOAN_OFFICER`. Errors: `409 EMAIL_TAKEN`, `403 FORBIDDEN` when a manager tries to create a manager or admin.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Postman Officer\",\n  \"email\": \"{{$timestamp}}@postman.test\",\n  \"phone\": \"9123456780\",\n  \"password\": \"Officer@123\",\n  \"role\": \"LOAN_OFFICER\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update user",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/{{userId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "{{userId}}"
+              ]
+            },
+            "description": "Manager only. Send only the fields to change: `fullName`, `phone`, `role`, `status` (`ACTIVE` | `SUSPENDED`). A suspended user is locked out on their next request. Errors: `400 OWN_ROLE`, `400 OWN_STATUS`, `403 FORBIDDEN`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Postman Field Officer\",\n  \"status\": \"ACTIVE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List officers",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "const officer = pm.response.json().find((u) => u.role === 'LOAN_OFFICER');",
+                  "if (officer) pm.collectionVariables.set('officerId', officer.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/officers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "officers"
+              ]
+            },
+            "description": "Active staff a line can be assigned to. Any role."
+          },
+          "response": []
+        },
+        {
+          "name": "Get company",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/company",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "company"
+              ]
+            },
+            "description": "Name, office location and daily collection target."
+          },
+          "response": []
+        },
+        {
+          "name": "Update company",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/company",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "company"
+              ]
+            },
+            "description": "Manager only. Every field is optional. `office` is where collection routes start and end.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"BillionBrains Microfinance · Chennai\",\n  \"office\": {\n    \"lat\": 13.085,\n    \"lng\": 80.2101\n  },\n  \"dailyTarget\": 25000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Lines",
+      "description": "Collection lines: a named round with one officer and a collection frequency. Addressed by code (`L01`).",
+      "item": [
+        {
+          "name": "List lines",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/lines",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "lines"
+              ]
+            },
+            "description": "Every line with today's `due` and `collected` and its count of open `accounts`."
+          },
+          "response": []
+        },
+        {
+          "name": "Create line",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 201', () => pm.expect(pm.response.code).to.be.oneOf([201]));",
+                  "pm.collectionVariables.set('lineId', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/lines",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "lines"
+              ]
+            },
+            "description": "Manager only. `frequency`: `daily` | `weekly` | `monthly` | `monthly-interest`. `schedule`: a weekday name for weekly lines, `1`-`28` or `Last day` for monthly ones, ignored for daily. `officerId` may be null.\n\nErrors: `409 LINE_NAME_TAKEN`, `400 SCHEDULE_REQUIRED`, `400 UNKNOWN_OFFICER`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Line {{$timestamp}} · Adyar\",\n  \"frequency\": \"weekly\",\n  \"schedule\": \"Friday\",\n  \"officerId\": \"{{officerId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get line",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/lines/{{lineId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "lines",
+                "{{lineId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update line",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/lines/{{lineId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "lines",
+                "{{lineId}}"
+              ]
+            },
+            "description": "Manager only. Replaces name, frequency, schedule and officer.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Line {{$timestamp}} · Adyar East\",\n  \"frequency\": \"monthly\",\n  \"schedule\": \"5\",\n  \"officerId\": \"{{officerId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Line route",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/lines/L04/route",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "lines",
+                "L04",
+                "route"
+              ]
+            },
+            "description": "Today's walking order for the line: nearest unvisited doorstep first, starting from the office. `stops` are still to collect, `collected` are done today (with how far from the doorstep the receipt was posted), `unmapped` have no pin. Distances are straight-line km."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Customers",
+      "description": "Customers, their doorstep pin and identity proof (KYC). Addressed by code (`C-0007`).",
+      "item": [
+        {
+          "name": "List customers",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/customers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "customers"
+              ],
+              "query": [
+                {
+                  "key": "query",
+                  "value": "priya",
+                  "description": "Matches name, phone or customer code",
+                  "disabled": true
+                },
+                {
+                  "key": "lineId",
+                  "value": "L01",
+                  "description": "Only this line",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "active",
+                  "description": "pending | approved | active",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Newest first. All filters optional."
+          },
+          "response": []
+        },
+        {
+          "name": "Create customer",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('customerPhone', '9' + String(Date.now()).slice(-9));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 201', () => pm.expect(pm.response.code).to.be.oneOf([201]));",
+                  "pm.collectionVariables.set('customerId', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/customers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "customers"
+              ]
+            },
+            "description": "`phone` is a 10-digit Indian mobile (starts 6-9) and unique within the company. `requestedAmount` is 1,000-1,000,000 whole rupees. The customer starts as `pending`.\n\nErrors: `409 PHONE_TAKEN`, `400 UNKNOWN_LINE`, `400 ALT_PHONE_SAME`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Customer\",\n  \"phone\": \"{{customerPhone}}\",\n  \"altPhone\": \"\",\n  \"parentName\": \"Parent Name\",\n  \"address\": \"12, Gandhi Road, Adyar, Chennai 600020\",\n  \"requestedAmount\": 30000,\n  \"lineId\": \"{{lineId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get customer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/customers/{{customerId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "customers",
+                "{{customerId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update customer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/customers/{{customerId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "customers",
+                "{{customerId}}"
+              ]
+            },
+            "description": "Full replacement of the editable fields. Moving a customer with a running loan or open application to another line is refused with `409 LINE_IN_USE`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Customer\",\n  \"phone\": \"{{customerPhone}}\",\n  \"altPhone\": \"\",\n  \"parentName\": \"Parent Name\",\n  \"address\": \"14, Gandhi Road, Adyar, Chennai 600020\",\n  \"requestedAmount\": 35000,\n  \"lineId\": \"{{lineId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Set doorstep pin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/customers/{{customerId}}/geo",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "customers",
+                "{{customerId}}",
+                "geo"
+              ]
+            },
+            "description": "`accuracy` (metres) is optional.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lat\": 13.0418,\n  \"lng\": 80.2341,\n  \"accuracy\": 8\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Clear doorstep pin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/customers/{{customerId}}/geo",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "customers",
+                "{{customerId}}",
+                "geo"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Save identity proof (KYC)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/customers/{{customerId}}/kyc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "customers",
+                "{{customerId}}",
+                "kyc"
+              ]
+            },
+            "description": "Adds an identity proof, or replaces the customer's proof of the same `type`; other types are kept, so a customer can hold several. Multipart form. Tick `front` / `back` and choose a photo to upload one; only the sides sent are replaced. The ID number is encrypted at rest. An application cannot be approved until the customer has proof on file.\n\nErrors: `400 ID_FORMAT`, `400 NOT_AN_IMAGE`, `413 FILE_TOO_LARGE`.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "type",
+                  "value": "AADHAAR",
+                  "type": "text",
+                  "description": "AADHAAR | PAN | VOTER_ID | DRIVING_LICENSE | PASSPORT"
+                },
+                {
+                  "key": "number",
+                  "value": "4321 7890 5612",
+                  "type": "text",
+                  "description": "Spaces and hyphens are stripped"
+                },
+                {
+                  "key": "front",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true,
+                  "description": "Optional JPEG / PNG / WebP, up to 5 MB"
+                },
+                {
+                  "key": "back",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true,
+                  "description": "Optional; dropped for PAN"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get KYC photo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200 or 404', () => pm.expect(pm.response.code).to.be.oneOf([200, 404]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/customers/{{customerId}}/kyc/AADHAAR/front",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "customers",
+                "{{customerId}}",
+                "kyc",
+                "AADHAAR",
+                "front"
+              ]
+            },
+            "description": "The stored photo for one ID type, `front` or `back`. Needs the Authorization header, so it cannot be used directly as an `<img src>`. `404` when the customer holds no proof of that type or no photo was uploaded for that side."
+          },
+          "response": []
+        },
+        {
+          "name": "Remove identity proof",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200 or 404', () => pm.expect(pm.response.code).to.be.oneOf([200, 404]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/customers/{{customerId}}/kyc/PAN",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "customers",
+                "{{customerId}}",
+                "kyc",
+                "PAN"
+              ]
+            },
+            "description": "Removes the customer's proof of that ID type and deletes its photos. `200` → customer. `404` when the customer holds no proof of that type."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Applications",
+      "description": "Loan applications from submission through approval to disbursal. Addressed by code (`APP-3104`).",
+      "item": [
+        {
+          "name": "Price a loan",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/loans/price",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "loans",
+                "price"
+              ]
+            },
+            "description": "Prices a loan for the form preview; saves nothing. `type`: `POST` (interest collected with the installments) or `PRE` (interest and fee deducted from the cash handed over).\n\nLimits: principal 1,000-1,000,000; rate > 0 and ≤ 60; months 1-60; fee ≤ 10% of principal. Errors: `400 FEE_HIGH`, `400 NOTHING_TO_DISBURSE`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"POST\",\n  \"principal\": 30000,\n  \"annualRatePct\": 24,\n  \"months\": 10,\n  \"fee\": 500\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Submit application",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 201', () => pm.expect(pm.response.code).to.be.oneOf([201]));",
+                  "pm.collectionVariables.set('applicationId', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/applications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "applications"
+              ]
+            },
+            "description": "`emi` may be omitted or null to accept the calculated installment, or rounded up from it. `disburseOn` may be at most 7 days ahead.\n\nErrors: `409 APPLICATION_OPEN` (one open application per customer), `400 DATE_TOO_FAR`, `400 EMI_SHORT`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"{{customerId}}\",\n  \"type\": \"POST\",\n  \"principal\": 30000,\n  \"annualRatePct\": 24,\n  \"months\": 10,\n  \"fee\": 500,\n  \"emi\": null,\n  \"disburseOn\": \"{{today}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List applications",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/applications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "applications"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "pending",
+                  "description": "pending | approved | rejected | disbursed",
+                  "disabled": true
+                },
+                {
+                  "key": "customerId",
+                  "value": "{{customerId}}",
+                  "description": "Only this customer",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get application",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/applications/{{applicationId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "applications",
+                "{{applicationId}}"
+              ]
+            },
+            "description": "`approvalBlocker` is `\"noProof\"` while the customer has no identity proof."
+          },
+          "response": []
+        },
+        {
+          "name": "Approve application",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/applications/{{applicationId}}/approve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "applications",
+                "{{applicationId}}",
+                "approve"
+              ]
+            },
+            "description": "Manager only. The body and `note` are optional. Errors: `409 NOT_PENDING`, `409 NO_PROOF`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"Verified at the doorstep.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Disburse application",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.collectionVariables.set('loanId', pm.response.json().loan.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/applications/{{applicationId}}/disburse",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "applications",
+                "{{applicationId}}",
+                "disburse"
+              ]
+            },
+            "description": "Manager only. Books the approved application as a loan dated today, writes the whole installment schedule and marks the customer `active`. Returns the loan detail. Error: `409 NOT_APPROVED`."
+          },
+          "response": []
+        },
+        {
+          "name": "Reject application",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200 or 409', () => pm.expect(pm.response.code).to.be.oneOf([200, 409]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/applications/{{rejectApplicationId}}/reject",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "applications",
+                "{{rejectApplicationId}}",
+                "reject"
+              ]
+            },
+            "description": "Manager only. `reason` is required. Defaults to the demo application `APP-3104`; a second run answers `409 NOT_PENDING` because it is already decided.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Existing loan is in arrears.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Loans",
+      "description": "The loan book. Addressed by loan number (`LN-20418`). Balances are derived from the installments on every read.",
+      "item": [
+        {
+          "name": "List loans",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/loans",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "loans"
+              ],
+              "query": [
+                {
+                  "key": "query",
+                  "value": "LN-204",
+                  "description": "Matches loan number, customer name or phone",
+                  "disabled": true
+                },
+                {
+                  "key": "state",
+                  "value": "overdue",
+                  "description": "all (default) | active | overdue | closed",
+                  "disabled": true
+                },
+                {
+                  "key": "lineId",
+                  "value": "L04",
+                  "description": "all (default) or a line code",
+                  "disabled": true
+                },
+                {
+                  "key": "customerId",
+                  "value": "C-0001",
+                  "description": "Only this customer",
+                  "disabled": true
+                },
+                {
+                  "key": "sort",
+                  "value": "late",
+                  "description": "newest (default) | late | outstanding",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get loan",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/loans/{{loanId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "loans",
+                "{{loanId}}"
+              ]
+            },
+            "description": "The loan with its customer, summary, full schedule and receipts (newest first)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Collection",
+      "description": "Today's collection sheet and receipts. One installment is receipted in full at a time, oldest first, only once it has fallen due.",
+      "item": [
+        {
+          "name": "Collection sheet",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "const open = pm.response.json().find((row) => row.status !== 'collected');",
+                  "if (open) {",
+                  "    pm.collectionVariables.set('payLoanId', open.loanNo);",
+                  "    pm.collectionVariables.set('paySeq', open.seq);",
+                  "}",
+                  "pm.collectionVariables.set('clientOpId', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/collection/sheet",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "collection",
+                "sheet"
+              ],
+              "query": [
+                {
+                  "key": "lineId",
+                  "value": "L01",
+                  "description": "Only this line",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "For each open loan: installments already collected today plus the next one that is due or overdue. `status`: `due` | `overdue` | `collected`.\n\nThe test script remembers the first uncollected row for the two requests below."
+          },
+          "response": []
+        },
+        {
+          "name": "Record payment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 201', () => pm.expect(pm.response.code).to.be.oneOf([201]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/loans/{{payLoanId}}/payments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "loans",
+                "{{payLoanId}}",
+                "payments"
+              ]
+            },
+            "description": "Receipts the next installment. `seq` must be the loan's first unpaid installment; `paidOn` cannot be in the future or before the due date; `mode` is `CASH` or `UPI`; `geo` is optional. The last receipt closes the loan.\n\n`clientOpId` is an idempotency key: sending the same one again returns the original receipt instead of creating another.\n\nErrors: `409 LOAN_CLOSED`, `409 WRONG_INSTALLMENT`, `400 DATE_AHEAD`, `400 DATE_BEFORE_DUE`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"seq\": {{paySeq}},\n  \"paidOn\": \"{{today}}\",\n  \"mode\": \"CASH\",\n  \"geo\": { \"lat\": 13.0418, \"lng\": 80.2341, \"accuracy\": 12 },\n  \"clientOpId\": \"{{clientOpId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Sync offline payments",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test('replayed receipt is reported as a duplicate', () => pm.expect(pm.response.json().results[0].status).to.eql('DUPLICATE'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/sync/payments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "sync",
+                "payments"
+              ]
+            },
+            "description": "Posts up to 200 receipts captured offline. Each item is applied or rejected on its own, in order; the call itself answers `200`. Per-item `status`: `APPLIED`, `DUPLICATE` (this `clientOpId` was already applied; the original receipt is returned) or `REJECTED` (with `code` and `error`).\n\nThis example replays the receipt from **Record payment**, so it comes back `DUPLICATE`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"clientOpId\": \"{{clientOpId}}\",\n      \"loanId\": \"{{payLoanId}}\",\n      \"payment\": { \"seq\": {{paySeq}}, \"paidOn\": \"{{today}}\", \"mode\": \"CASH\" }\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Dashboard & insights",
+      "description": "Read models for the home screen and the insights page. Any role.",
+      "item": [
+        {
+          "name": "Dashboard",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/dashboard",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dashboard"
+              ]
+            },
+            "description": "KPIs (`outstanding`, `collected`, `overdue`, `loans`), the last seven days of collections, the daily target, arrears buckets, lines and the count of pending approvals."
+          },
+          "response": []
+        },
+        {
+          "name": "Insights",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/insights",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "insights"
+              ]
+            },
+            "description": "Collection efficiency (today, by line, by officer, week) and a rule-based 0-100 risk score per open loan with PAR1 / PAR30."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Reports",
+      "description": "Manager only. `from` / `to` are ISO dates; with none given the range is the current month up to today. A range may span at most one year (`400 BAD_RANGE`, `400 RANGE_TOO_LONG`).",
+      "item": [
+        {
+          "name": "Portfolio summary",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reports/portfolio-summary",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reports",
+                "portfolio-summary"
+              ]
+            },
+            "description": "Per line: active and closed loans, disbursed, outstanding and overdue."
+          },
+          "response": []
+        },
+        {
+          "name": "Collection register",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reports/collection-register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reports",
+                "collection-register"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "2026-01-01",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "{{today}}",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "lineId",
+                  "value": "L01",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Every receipt in the range with cash / UPI totals."
+          },
+          "response": []
+        },
+        {
+          "name": "Overdue ageing",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reports/overdue-ageing",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reports",
+                "overdue-ageing"
+              ]
+            },
+            "description": "Per line, loans bucketed by days late: `current`, `1-30`, `31-60`, `61-90`, `90+`."
+          },
+          "response": []
+        },
+        {
+          "name": "Disbursement register",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reports/disbursement-register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reports",
+                "disbursement-register"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "2026-01-01",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "{{today}}",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Loans disbursed in the range with the application behind each."
+          },
+          "response": []
+        },
+        {
+          "name": "Line performance",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reports/line-performance",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reports",
+                "line-performance"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "2026-01-01",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "{{today}}",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Per line: what fell due in the range, how much of it was collected, and arrears as they stand today."
+          },
+          "response": []
+        },
+        {
+          "name": "Day book",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reports/day-book",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reports",
+                "day-book"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "2026-01-01",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "{{today}}",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Per day: cash in, UPI in, disbursed out, net and running closing. Days with no movement are left out."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Audit",
+      "description": "Manager only.",
+      "item": [
+        {
+          "name": "Audit logs",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/audit-logs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "audit-logs"
+              ]
+            },
+            "description": "The latest 200 audit entries, newest first."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "AI assistant",
+      "description": "Needs `ANTHROPIC_API_KEY` on the server.",
+      "item": [
+        {
+          "name": "Chat (SSE)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ai/chat",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ai",
+                "chat"
+              ]
+            },
+            "description": "Streams the answer as server-sent events (`text/event-stream`), one JSON object per `data:` line: `{\"type\":\"text\",\"text\":\"...\"}` chunks, then `{\"type\":\"done\"}` or `{\"type\":\"error\",\"message\":\"...\"}`. The call answers `200` even when the assistant fails; read the last event.\n\n`locale`: `en` | `ta`. Up to 40 messages of up to 4,000 characters; the conversation must start and end with a `user` message (`400 BAD_CONVERSATION`). The server builds the portfolio snapshot itself. Also served at `/ai/chat` without the prefix.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"locale\": \"en\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Which line has the most overdue today?\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

@@ -13,8 +13,10 @@ import {
 } from '../lib/data';
 import { addMonths, formatDate, loanTypeLabel, type ScheduleRow } from '../lib/loan';
 import { LoanStatePill } from './CustomerView';
+import { usePortfolio } from '../lib/usePortfolio';
 
 export function LoanView() {
+  usePortfolio();
   const { id = '' } = useParams();
   const loan = loanById(id);
 

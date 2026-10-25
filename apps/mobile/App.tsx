@@ -17,6 +17,9 @@ import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { loadLocale, useActiveLocale } from './src/i18n';
+import { loadPortfolio } from './src/lib/data';
+import { getSession, loadSession } from './src/lib/session';
+import { loadRotation } from './src/orientation';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { colors } from './src/theme';
 
@@ -49,7 +52,14 @@ export default function App() {
   const navState = useRef<NavigationState | undefined>(undefined);
 
   useEffect(() => {
-    loadLocale().finally(() => setLocaleLoaded(true));
+    Promise.all([loadLocale(), loadRotation(), loadSession()])
+      .then(() => {
+        if (!getSession()) return;
+        // A revoked token clears the session (back to sign-in); offline, the
+        // screens open empty and a pull down retries.
+        return loadPortfolio().catch(() => undefined);
+      })
+      .finally(() => setLocaleLoaded(true));
   }, []);
 
   if (!fontsLoaded || !localeLoaded) {

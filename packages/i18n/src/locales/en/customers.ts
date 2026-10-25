@@ -70,6 +70,8 @@ export const customers = {
     doorstepPin: 'Doorstep pin',
     accuracyAt: '±{metres} m · {time}',
     notPinned: 'Not pinned',
+    editPin: 'Edit pin',
+    addPin: 'Add pin',
     loans: 'Loans',
     loansOnRecord: {
       one: '{count} on record',
@@ -85,8 +87,19 @@ export const customers = {
     disbursedOn: 'Disbursed {date}',
     openLoanHint: 'Opens the loan',
   },
+  location: {
+    save: 'Save location',
+    remove: 'Remove pin',
+  },
   proof: {
-    onFile: 'On file: {idType} {number}',
+    onFileTitle: 'IDs on file',
+    addTitle: 'Add an ID',
+    editTitle: 'Update {idType}',
+    addAnother: 'Add another ID',
+    edit: 'Edit',
+    remove: 'Remove',
+    removeConfirm: 'Remove {idType} {number} for {name}? Its photos are deleted too.',
+    replaces: '{idType} is already on file — saving replaces it.',
     none: 'No proof captured for this customer yet.',
     idType: 'Identity type',
     selectIdType: 'Select an identity type',
@@ -96,7 +109,7 @@ export const customers = {
     storedAs: 'Stored as {number}',
     spacesFine: 'Spaces are fine — they are stripped before saving.',
     images: 'Proof images',
-    imagesHint: 'Clear, well-lit photos — every corner of the card in frame.',
+    imagesHint: 'Optional — clear, well-lit photos with every corner of the card in frame.',
     front: 'Front of the ID',
     frontHint: 'The side carrying the photo and the number.',
     back: 'Back of the ID',
@@ -105,8 +118,6 @@ export const customers = {
     save: 'Save proof',
     errors: {
       typeRequired: 'Choose the identity type.',
-      frontRequired: 'A photo of the front is required.',
-      backRequired: 'A photo of the back is required for this ID.',
     },
   },
 };

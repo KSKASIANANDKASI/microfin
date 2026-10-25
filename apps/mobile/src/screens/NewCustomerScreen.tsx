@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { t } from '@lms/i18n';
 import { StyleSheet, Text, View } from 'react-native';
+import { FormError, errorMessage } from '../components/bits';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { GeoField, type Geo } from '../components/GeoField';
@@ -9,7 +10,7 @@ import { Picker } from '../components/Picker';
 import { Screen } from '../components/Screen';
 import { TextField } from '../components/TextField';
 import { PhoneIcon, UserIcon } from '../components/icons';
-import { formatCurrency, lines } from '../lib/data';
+import { createCustomer, formatCurrency, lineById, lines } from '../lib/data';
 import { validatePhone } from '../lib/validate';
 import type { AppStackParamList } from '../navigation/types';
 import { colors, fontFamily, space, textStyle } from '../theme';
@@ -23,11 +24,11 @@ type Errors = {
   address?: string;
   amount?: string;
   line?: string;
+  geo?: string;
 };
 
 const MIN_AMOUNT = 1000;
 const MAX_AMOUNT = 1000000;
-const LINE_NAMES = lines.map((l) => l.name);
 
 export function NewCustomerScreen({ navigation }: Props) {
   const [name, setName] = useState('');
@@ -36,10 +37,13 @@ export function NewCustomerScreen({ navigation }: Props) {
   const [parentName, setParentName] = useState('');
   const [address, setAddress] = useState('');
   const [amount, setAmount] = useState('');
+  // The line's id (its code) — what the server looks the line up by. The picker shows names.
   const [line, setLine] = useState('');
   const [geo, setGeo] = useState<Geo>();
+  const [geoInvalid, setGeoInvalid] = useState(false);
   const [errors, setErrors] = useState<Errors>({});
   const [submitting, setSubmitting] = useState(false);
+  const [saveError, setSaveError] = useState<string>();
 
   const amountValue = Number(amount.replace(/[^\d]/g, ''));
 
@@ -64,13 +68,29 @@ export function NewCustomerScreen({ navigation }: Props) {
             ? t('customers.form.errors.amountMax', { amount: formatCurrency(MAX_AMOUNT) })
             : undefined,
       line: line ? undefined : t('customers.form.errors.lineRequired'),
+      geo: geoInvalid ? t('common.geo.invalid') : undefined,
     };
     setErrors(next);
     if (Object.values(next).some(Boolean)) return;
 
     setSubmitting(true);
-    // UI-only for now: POST /customers goes here.
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    setSaveError(undefined);
+    try {
+      await createCustomer({
+        name: name.trim(),
+        phone: phone.replace(/\D/g, ''),
+        altPhone: altPhone.replace(/\D/g, '') || undefined,
+        parentName: parentName.trim(),
+        address: address.trim(),
+        requestedAmount: amountValue,
+        lineId: line,
+        geo,
+      });
+    } catch (error) {
+      setSaveError(errorMessage(error));
+      setSubmitting(false);
+      return;
+    }
     setSubmitting(false);
     navigation.popTo('Main', { screen: 'Customers' });
   }
@@ -138,7 +158,14 @@ export function NewCustomerScreen({ navigation }: Props) {
             textAlignVertical="top"
           />
 
-          <GeoField value={geo} onChange={setGeo} />
+          <GeoField
+            value={geo}
+            error={errors.geo}
+            onChange={(next, invalid) => {
+              setGeo(next);
+              setGeoInvalid(invalid);
+            }}
+          />
         </View>
       </Card>
 
@@ -165,10 +192,10 @@ export function NewCustomerScreen({ navigation }: Props) {
           <Picker
             label={t('customers.form.line')}
             placeholder={t('customers.form.selectLine')}
-            value={line}
-            options={LINE_NAMES}
-            onChange={(next) => {
-              setLine(next);
+            value={lineById(line)?.name ?? ''}
+            options={lines.map((l) => l.name)}
+            onChange={(name) => {
+              setLine(lines.find((l) => l.name === name)?.id ?? '');
               setErrors((e) => ({ ...e, line: undefined }));
             }}
             error={errors.line}
@@ -178,6 +205,7 @@ export function NewCustomerScreen({ navigation }: Props) {
       </Card>
 
       <View style={styles.actions}>
+        <FormError message={saveError} />
         <Button label={t('customers.form.save')} onPress={onSubmit} loading={submitting} />
         <Button label={t('common.actions.cancel')} variant="ghost" onPress={() => navigation.goBack()} />
       </View>

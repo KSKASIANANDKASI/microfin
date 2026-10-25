@@ -1,0 +1,34 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:lms;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    username: sa
+    password:
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 12MB
+
+lms:
+  zone: Asia/Kolkata
+  auth:
+    jwt-secret:
+    access-ttl: 1h
+    remember-ttl: 30d
+    reset-ttl: 30m
+    dev-echo-reset-token: true
+  cors:
+    origins: "*"
+  storage:
+    dir: ./target/test-uploads
+  kyc:
+    encryption-key: dGVzdC1vbmx5LWt5Yy1rZXktMzItYnl0ZXMtbG9uZyE=
+  ai:
+    api-key:
+    model: claude-opus-5
+  mail:
+    from: Finance Easy <no-reply@test.local>
+    reset-url: http://localhost:5173/reset-password

@@ -14,6 +14,7 @@ import {
   WalletIcon,
 } from './icons';
 import { useApplications } from '../lib/useApplications';
+import { isManager } from '../lib/session';
 
 /** Built per render so the labels follow the active language. */
 const sections = () => [
@@ -25,7 +26,7 @@ const sections = () => [
       { to: '/loans', label: t('common.nav.loans'), icon: LedgerIcon },
       { to: '/approvals', label: t('common.nav.approvals'), icon: ShieldIcon },
       { to: '/collection', label: t('common.nav.collection'), icon: WalletIcon },
-      { to: '/reports', label: t('common.nav.reports'), icon: ReportIcon },
+      ...(isManager() ? [{ to: '/reports', label: t('common.nav.reports'), icon: ReportIcon }] : []),
       { to: '/insights', label: t('common.nav.insights'), icon: SparkIcon },
       { to: '/calculator', label: t('common.nav.calculator'), icon: CalculatorIcon },
     ],

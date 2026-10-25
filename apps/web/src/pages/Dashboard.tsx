@@ -26,21 +26,22 @@ import {
 } from '../lib/data';
 import { formatDayHeading } from '../lib/loan';
 import { useCollectionSheet } from '../lib/useCollectionSheet';
-
-const current = arrears.find((a) => a.tone === 'good')!;
-const overdue = arrears.filter((a) => a.tone !== 'good');
-// Scale the bars to each other, not to `current` — it is ~70x larger and would
-// flatten both overdue buckets into invisible slivers.
-const overdueMax = Math.max(...overdue.map((a) => a.amount));
-const totalOutstanding = arrears.reduce((sum, a) => sum + a.amount, 0);
+import { usePortfolio } from '../lib/usePortfolio';
 
 export function Dashboard() {
+  usePortfolio();
   const sheet = useCollectionSheet();
+  const current = arrears.find((a) => a.tone === 'good') ?? { accounts: 0, amount: 0 };
+  const overdue = arrears.filter((a) => a.tone !== 'good');
+  // Scale the bars to each other, not to `current` — it is far larger and would
+  // flatten both overdue buckets into invisible slivers.
+  const overdueMax = Math.max(1, ...overdue.map((a) => a.amount));
+  const totalOutstanding = arrears.reduce((sum, a) => sum + a.amount, 0);
   const dueToday = sheet.filter((i) => i.status === 'due');
   const collected = sheet.filter((i) => i.status === 'collected');
   // `{amount}` is left unfilled so the figure can be rendered bold between the halves.
   const [currentBefore = '', currentAfter = ''] = tp('dashboard.arrears.current', current.accounts, {
-    percent: ((current.amount / totalOutstanding) * 100).toFixed(1),
+    percent: (totalOutstanding ? (current.amount / totalOutstanding) * 100 : 0).toFixed(1),
     count: formatNumber(current.accounts),
   }).split('{amount}');
 
@@ -70,7 +71,7 @@ export function Dashboard() {
 
       <div className="kpis">
         {kpis.map((kpi) => {
-          const Trend = kpi.delta >= 0 ? TrendUpIcon : TrendDownIcon;
+          const Trend = (kpi.delta ?? 0) >= 0 ? TrendUpIcon : TrendDownIcon;
           const KpiIcon = KPI_ICONS[kpi.id];
           return (
             <article className={`kpi kpi--hover kpi--${kpi.id}`} key={kpi.id}>
@@ -81,14 +82,16 @@ export function Dashboard() {
                 </span>
               </div>
               <p className="kpi__value">
-                {'currency' in kpi && kpi.currency === false
+                {kpi.currency === false
                   ? formatNumber(kpi.value)
                   : formatCurrency(kpi.value, true)}
               </p>
-              <p className={`kpi__delta${kpi.deltaGood ? '' : ' kpi__delta--bad'}`}>
-                <Trend />
-                {Math.abs(kpi.delta)}%<span className="kpi__note">{kpi.note}</span>
-              </p>
+              {kpi.delta != null ? (
+                <p className={`kpi__delta${kpi.deltaGood ? '' : ' kpi__delta--bad'}`}>
+                  <Trend />
+                  {Math.abs(kpi.delta)}%<span className="kpi__note">{kpi.note}</span>
+                </p>
+              ) : null}
             </article>
           );
         })}

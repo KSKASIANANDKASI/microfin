@@ -5,18 +5,21 @@ import { t } from '@lms/i18n';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { DateField } from '../components/DateField';
+import { PaymentGeoField } from '../components/PaymentGeoField';
 import { Screen } from '../components/Screen';
-import { LinkText } from '../components/bits';
+import { FormError, LinkText, errorMessage } from '../components/bits';
 import { Avatar, StatusPill } from '../components/rows';
 import { CheckIcon } from '../components/icons';
 import {
   PAYMENT_MODES,
+  doorstepFor,
   formatCurrency,
   installmentById,
   lineById,
   loanById,
   receiptNo,
   recordPayment,
+  type PaymentGeo,
   type PaymentMode,
 } from '../lib/data';
 import { daysBetween, formatDate, parseIsoDate, todayIso } from '../lib/loan';
@@ -33,8 +36,10 @@ export function CollectPaymentScreen({ route, navigation }: Props) {
   const [installment] = useState(() => installmentById(installmentId));
   const [date, setDate] = useState(todayIso());
   const [mode, setMode] = useState<PaymentMode>('CASH');
+  const [geo, setGeo] = useState<PaymentGeo>();
   const [errors, setErrors] = useState<Errors>({});
   const [submitting, setSubmitting] = useState(false);
+  const [saveError, setSaveError] = useState<string>();
 
   if (!installment || installment.status === 'collected') {
     return (
@@ -65,9 +70,20 @@ export function CollectPaymentScreen({ route, navigation }: Props) {
     if (next.date) return;
 
     setSubmitting(true);
-    // UI-only for now: POST /loans/:id/payments goes here.
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    recordPayment({ loanId: installment.loanNo, seq: installment.seq, paidOn: date, mode });
+    setSaveError(undefined);
+    try {
+      await recordPayment({
+        loanId: installment.loanNo,
+        seq: installment.seq,
+        paidOn: date,
+        mode,
+        geo: date === todayIso() ? geo : undefined,
+      });
+    } catch (error) {
+      setSaveError(errorMessage(error));
+      setSubmitting(false);
+      return;
+    }
     setSubmitting(false);
     navigation.goBack();
   }
@@ -141,10 +157,18 @@ export function CollectPaymentScreen({ route, navigation }: Props) {
               })}
             </View>
           </View>
+
+          <PaymentGeoField
+            value={geo}
+            onChange={setGeo}
+            doorstep={doorstepFor(installment.loanNo)}
+            backdated={date !== todayIso()}
+          />
         </View>
       </Card>
 
       <View style={styles.actions}>
+        <FormError message={saveError} />
         <Button label={t('collection.pay.submit')} onPress={onSubmit} loading={submitting} />
         <Button label={t('common.actions.cancel')} variant="ghost" onPress={() => navigation.goBack()} />
       </View>

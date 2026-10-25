@@ -6,10 +6,15 @@ import { Button } from '../components/Button';
 import { PasswordStrength, scorePassword } from '../components/PasswordStrength';
 import { TextField } from '../components/TextField';
 import { LockIcon, MailIcon, PhoneIcon, UserIcon } from '../components/icons';
+import { clearPortfolio } from '../lib/data';
+import { errorMessage, signUp } from '../lib/session';
 import { requiredText, validateEmail, validatePassword, validatePhone } from '../lib/validate';
 
 type Errors = {
+  form?: string;
+  companyName?: string;
   fullName?: string;
+  confirm?: string;
   email?: string;
   phone?: string;
   password?: string;
@@ -18,10 +23,12 @@ type Errors = {
 
 export function SignUp() {
   const navigate = useNavigate();
+  const [companyName, setCompanyName] = useState('');
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
   const [accepted, setAccepted] = useState(false);
   const [errors, setErrors] = useState<Errors>({});
   const [submitting, setSubmitting] = useState(false);
@@ -29,20 +36,28 @@ export function SignUp() {
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     const next: Errors = {
+      companyName: requiredText(companyName, t('auth.signUp.companyName')),
       fullName: requiredText(fullName, t('auth.signUp.fullName')),
       email: validateEmail(email),
       phone: validatePhone(phone),
       password: validatePassword(password) ?? (scorePassword(password) < 2 ? t('auth.signUp.weakPassword') : undefined),
+      confirm: confirm === password ? undefined : t('settings.changePassword.mismatch'),
       accepted: accepted ? undefined : t('auth.signUp.acceptTerms'),
     };
     setErrors(next);
     if (Object.values(next).some(Boolean)) return;
 
     setSubmitting(true);
-    // UI-only for now: POST /auth/register goes here.
-    await new Promise((resolve) => setTimeout(resolve, 900));
-    setSubmitting(false);
-    navigate('/sign-in');
+    try {
+      // Creates the company and its admin, and signs the admin in.
+      await signUp({ companyName: companyName.trim(), fullName: fullName.trim(), email, phone, password });
+    } catch (error) {
+      setErrors({ form: errorMessage(error) });
+      setSubmitting(false);
+      return;
+    }
+    clearPortfolio();
+    navigate('/dashboard', { replace: true });
   }
 
   return (
@@ -53,14 +68,20 @@ export function SignUp() {
       </div>
 
       <form className="stack" onSubmit={onSubmit} noValidate>
+        {errors.form ? (
+          <div className="notice notice--bad" role="alert">
+            {errors.form}
+          </div>
+        ) : null}
+
         <TextField
           label={t('auth.signUp.companyName')}
-          autoComplete="name"
+          autoComplete="organization"
           placeholder="ABC Finance"
           lead={<UserIcon />}
-          value={fullName}
-          error={errors.fullName}
-          onChange={(e) => setFullName(e.target.value)}
+          value={companyName}
+          error={errors.companyName}
+          onChange={(e) => setCompanyName(e.target.value)}
         />
 
 	<TextField
@@ -117,14 +138,13 @@ export function SignUp() {
           <TextField
             label={t('auth.signUp.confirmPassword')}
             revealable
-            autoComplete="confirm-password"
+            autoComplete="new-password"
             placeholder={t('auth.signUp.confirmPasswordPlaceholder')}
             lead={<LockIcon />}
-            value={password}
-            error={errors.password}
-            onChange={(e) => setPassword(e.target.value)}
+            value={confirm}
+            error={errors.confirm}
+            onChange={(e) => setConfirm(e.target.value)}
           />
-          {errors.password ? null : <PasswordStrength value={password} />}
         </div>
 
         <div>
@@ -139,7 +159,7 @@ export function SignUp() {
               {fillTemplate(t('auth.signUp.legal'), {
                 terms: <a href="#terms">{t('auth.signUp.terms')}</a>,
                 privacy: <a href="#privacy">{t('auth.signUp.privacy')}</a>,
-                company: 'BillionBrains Tech Ltd',
+                company: 'Billionbrains Tech Ltd',
               })}
             </span>
           </label>

@@ -3,8 +3,9 @@ import { Link } from 'react-router-dom';
 import { t, tp, type MessageKey } from '@lms/i18n';
 import { Card } from '../components/Card';
 import { ChevronDownIcon, IdIcon, PinIcon, SearchIcon } from '../components/icons';
-import { customers, formatCurrency, idTypeLabel, lineById, lines } from '../lib/data';
+import { customers, formatCurrency, idTypeLabel, lineById, lines, proofLabels } from '../lib/data';
 import type { Customer } from '../lib/data';
+import { usePortfolio } from '../lib/usePortfolio';
 
 /** `labelKey` is translated at render — `t()` must not run at import time. */
 export const CUSTOMER_STATUS = {
@@ -14,6 +15,7 @@ export const CUSTOMER_STATUS = {
 } as const satisfies Record<string, { labelKey: MessageKey; tone: string }>;
 
 export function Customers() {
+  usePortfolio();
   const [query, setQuery] = useState('');
   const [lineId, setLineId] = useState('all');
 
@@ -27,7 +29,7 @@ export function Customers() {
         customer.phone.includes(needle) ||
         customer.parentName.toLowerCase().includes(needle) ||
         customer.address.toLowerCase().includes(needle) ||
-        (customer.proof?.number.toLowerCase().includes(needle) ?? false)
+        customer.proofs.some((proof) => proof.number.toLowerCase().includes(needle))
       );
     });
   }, [lineId, query]);
@@ -91,6 +93,7 @@ export function Customers() {
 
 function CustomerRow({ customer }: { customer: Customer }) {
   const status = CUSTOMER_STATUS[customer.status];
+  const first = customer.proofs[0];
 
   return (
     <li className="list__row">
@@ -116,16 +119,18 @@ function CustomerRow({ customer }: { customer: Customer }) {
       </span>
 
       <Link
-        className={`proof__tag${customer.proof ? '' : ' proof__tag--off'}`}
+        className={`proof__tag${customer.proofs.length ? '' : ' proof__tag--off'}`}
         to={`/customers/${customer.id}/proof`}
         title={
-          customer.proof
-            ? t('customers.list.proofOnFile', { idType: idTypeLabel(customer.proof.type) })
+          customer.proofs.length
+            ? t('customers.list.proofOnFile', { idType: proofLabels(customer.proofs) })
             : t('customers.list.noProofOnFile')
         }
       >
         <IdIcon size={14} />
-        {customer.proof ? idTypeLabel(customer.proof.type) : t('customers.list.addProof')}
+        {first
+          ? `${idTypeLabel(first.type)}${customer.proofs.length > 1 ? ` +${customer.proofs.length - 1}` : ''}`
+          : t('customers.list.addProof')}
       </Link>
 
       {customer.geo ? (

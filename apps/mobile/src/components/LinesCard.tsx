@@ -4,19 +4,18 @@ import { chart } from '@lms/theme';
 import { formatCurrency, formatNumber, lines, officerLabel } from '../lib/data';
 import { colors, fontFamily, radius, space, textStyle } from '../theme';
 
-const dueMax = Math.max(...lines.map((l) => l.due));
-
 /**
  * Today's collection per line. The track is the amount due (scaled to the
  * biggest line) and the fill is what came in, so the shortfall is the gap.
  */
 export function LinesCard() {
+  const dueMax = Math.max(1, ...lines.map((l) => l.due));
   const due = lines.reduce((sum, l) => sum + l.due, 0);
   const collected = lines.reduce((sum, l) => sum + l.collected, 0);
   // Split on the collected amount so it can be bold wherever the language puts it.
   const [before = '', after = ''] = tp('lines.card.summary', lines.length, {
     due: formatCurrency(due),
-    pct: Math.round((collected / due) * 100),
+    pct: due ? Math.round((collected / due) * 100) : 0,
   }).split('{collected}');
 
   return (

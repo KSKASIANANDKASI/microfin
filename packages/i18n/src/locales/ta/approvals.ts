@@ -50,6 +50,8 @@ export const approvals: Shape<typeof en> = {
     note: 'குறிப்பு',
     notePlaceholder: 'அங்கீகரிக்கும்போது விருப்பத்தேர்வு. நிராகரிக்கக் காரணம் தேவை.',
     reasonRequired: 'நிராகரிப்பதற்கான காரணத்தைக் குறிப்பிடவும்.',
+    awaitingManager: 'மேலாளரின் முடிவுக்காகக் காத்திருக்கிறது.',
+    awaitingDisbursal: 'அங்கீகரிக்கப்பட்டது. மேலாளர் கடனை வழங்குவார்.',
     approve: 'அங்கீகரி',
     reject: 'நிராகரி',
     approvedOn: '{date} அன்று அங்கீகரிக்கப்பட்டது',

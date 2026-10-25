@@ -1,25 +1,32 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { t } from '@lms/i18n';
+import { FormError } from '../components/FormError';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
+import { PaymentGeoField } from '../components/PaymentGeoField';
 import { TextField } from '../components/TextField';
 import { ArrowLeftIcon, CheckIcon } from '../components/icons';
 import {
   PAYMENT_MODES,
+  doorstepFor,
   formatCurrency,
   installmentById,
   lineById,
   receiptNo,
   recordPayment,
+  type PaymentGeo,
   type PaymentMode,
 } from '../lib/data';
 import { daysBetween, formatDate, parseIsoDate, todayIso } from '../lib/loan';
+import { errorMessage } from '../lib/session';
 import { StatusPill } from './Dashboard';
+import { usePortfolio } from '../lib/usePortfolio';
 
 type Errors = { date?: string };
 
 export function CollectPayment() {
+  usePortfolio();
   const { id = '' } = useParams();
   const navigate = useNavigate();
   // Snapshot at mount: receipting flips the row to `collected`, and the form
@@ -27,8 +34,10 @@ export function CollectPayment() {
   const [installment] = useState(() => installmentById(id));
   const [date, setDate] = useState(todayIso());
   const [mode, setMode] = useState<PaymentMode>('CASH');
+  const [geo, setGeo] = useState<PaymentGeo>();
   const [errors, setErrors] = useState<Errors>({});
   const [submitting, setSubmitting] = useState(false);
+  const [saveError, setSaveError] = useState<string>();
 
   if (!installment || installment.status === 'collected') {
     return (
@@ -70,9 +79,20 @@ export function CollectPayment() {
     if (next.date) return;
 
     setSubmitting(true);
-    // UI-only for now: POST /loans/:id/payments goes here.
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    recordPayment({ loanId: installment.loanNo, seq: installment.seq, paidOn: date, mode });
+    setSaveError(undefined);
+    try {
+      await recordPayment({
+        loanId: installment.loanNo,
+        seq: installment.seq,
+        paidOn: date,
+        mode,
+        geo: date === todayIso() ? geo : undefined,
+      });
+    } catch (error) {
+      setSaveError(errorMessage(error));
+      setSubmitting(false);
+      return;
+    }
     setSubmitting(false);
     navigate('/collection');
   }
@@ -164,9 +184,17 @@ export function CollectPayment() {
                 ))}
               </div>
             </fieldset>
+
+            <PaymentGeoField
+              value={geo}
+              onChange={setGeo}
+              doorstep={doorstepFor(installment.loanNo)}
+              backdated={date !== todayIso()}
+            />
           </div>
         </Card>
 
+        <FormError message={saveError} />
         <div className="formactions">
           <Link className="btn btn--sm btn--ghost" to="/collection">
             {t('common.actions.cancel')}

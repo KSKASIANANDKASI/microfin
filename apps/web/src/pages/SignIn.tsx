@@ -1,13 +1,15 @@
 import { useState, type FormEvent } from 'react';
 import { t } from '@lms/i18n';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { AuthLayout } from '../components/AuthLayout';
 import { Button } from '../components/Button';
 import { TextField } from '../components/TextField';
 import { AppleIcon, GoogleIcon, LockIcon, MailIcon } from '../components/icons';
+import { clearPortfolio } from '../lib/data';
+import { ApiError, getSession, signIn } from '../lib/session';
 import { validateEmail, validatePassword } from '../lib/validate';
 
-type Errors = { email?: string; password?: string };
+type Errors = { email?: string; password?: string; form?: string };
 
 export function SignIn() {
   const navigate = useNavigate();
@@ -24,20 +26,28 @@ export function SignIn() {
     if (next.email || next.password) return;
 
     setSubmitting(true);
-    // UI-only for now: the API call lands here once /auth/login is wired up.
-    await new Promise((resolve) => setTimeout(resolve, 900));
-    setSubmitting(false);
-    navigate('/dashboard');
+    try {
+      await signIn(email, password, remember);
+      // Drop anything a previous user left in memory; the shell loads this user's portfolio.
+      clearPortfolio();
+      navigate('/dashboard', { replace: true });
+    } catch (error) {
+      setErrors({ form: error instanceof ApiError ? error.message : t('auth.errors.generic') });
+      setSubmitting(false);
+    }
   }
+
+  if (getSession()) return <Navigate to="/dashboard" replace />;
 
   return (
     <AuthLayout>
-      <div className="form-head">
-        <h1>{t('auth.signIn.title')}</h1>
-        <p>{t('auth.signIn.subtitle')}</p>
-      </div>
-
       <form className="stack" onSubmit={onSubmit} noValidate>
+        {errors.form ? (
+          <div className="notice notice--bad" role="alert">
+            {errors.form}
+          </div>
+        ) : null}
+
         <TextField
           label={t('auth.signIn.userOrEmail')}
           type="email"

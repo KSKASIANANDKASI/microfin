@@ -9,6 +9,7 @@ import { DashboardScreen } from '../screens/DashboardScreen';
 import { LoansScreen } from '../screens/LoansScreen';
 import { ReportsScreen } from '../screens/ReportsScreen';
 import { HomeIcon, LedgerIcon, ReportIcon, UsersIcon, WalletIcon } from '../components/icons';
+import { isManager } from '../lib/session';
 import { colors, fontFamily, space, type } from '../theme';
 import type { MainTabParamList } from './types';
 
@@ -64,7 +65,10 @@ export function MainTabs() {
         <Tab.Screen name="Collection" component={CollectionScreen} options={{ title: t('common.nav.collection') }} />
         <Tab.Screen name="Customers" component={CustomersScreen} options={{ title: t('common.nav.customers') }} />
         <Tab.Screen name="Loans" component={LoansScreen} options={{ title: t('common.nav.loans') }} />
-        <Tab.Screen name="Reports" component={ReportsScreen} options={{ title: t('common.nav.reports') }} />
+        {/* Every report is manager-only in the API. */}
+        {isManager() ? (
+          <Tab.Screen name="Reports" component={ReportsScreen} options={{ title: t('common.nav.reports') }} />
+        ) : null}
       </Tab.Navigator>
     </View>
   );

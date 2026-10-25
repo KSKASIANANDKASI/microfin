@@ -1,4 +1,4 @@
-# @lms/theme — BillionBrains design system
+# @lms/theme — Finance Easy design system
 
 Single source of truth for colour, type, spacing, radii and elevation. Plain
 data with no platform imports, so both apps consume the same values:
@@ -11,15 +11,15 @@ data with no platform imports, so both apps consume the same values:
 
 ## Brand
 
-Sampled from the corporate logo (`apps/*/assets|public/mark.png`):
+Sampled from the Finance Easy logo (`apps/*/assets|public/mark.png`):
 
-| Role      | Token             | Value     |
-| --------- | ----------------- | --------- |
-| Navy      | `palette.navy800` | `#062045` |
-| Gold      | `palette.gold500` | `#C29A46` |
-| Cream     | `palette.paper`   | `#FDFDFB` |
-| App bg    | `colors.bg`       | `#F7F8FB` |
-| Field fill| `colors.bgField`  | `#EEF1F6` |
+| Role       | Token              | Value     |
+| ---------- | ------------------ | --------- |
+| Navy       | `palette.navy800`  | `#062045` |
+| Gold       | `palette.gold500`  | `#C28E14` |
+| Cream      | `palette.paper`    | `#FDFDFB` |
+| App bg     | `colors.bg`        | `#F7F8FB` |
+| Field fill | `colors.bgField`   | `#EEF1F6` |
 
 Type: **Poppins** (700/800) for the wordmark and headings, **Inter** for UI and
 body. Web loads them from Google Fonts; mobile from `@expo-google-fonts/*`.

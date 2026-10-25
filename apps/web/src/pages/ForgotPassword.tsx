@@ -5,6 +5,7 @@ import { AuthLayout } from '../components/AuthLayout';
 import { Button } from '../components/Button';
 import { TextField } from '../components/TextField';
 import { ArrowLeftIcon, CheckIcon, MailIcon } from '../components/icons';
+import { errorMessage, requestPasswordReset } from '../lib/session';
 import { validateEmail } from '../lib/validate';
 
 export function ForgotPassword() {
@@ -20,7 +21,14 @@ export function ForgotPassword() {
     if (next) return;
 
     setSubmitting(true);
-    await new Promise((resolve) => setTimeout(resolve, 900));
+    try {
+      // Always answers "sent", whether or not the email has an account.
+      await requestPasswordReset(email);
+    } catch (failure) {
+      setError(errorMessage(failure));
+      setSubmitting(false);
+      return;
+    }
     setSubmitting(false);
     setSent(true);
   }

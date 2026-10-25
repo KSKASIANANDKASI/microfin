@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { t } from '@lms/i18n';
+import { FormError } from '../components/FormError';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { GeoField, type Geo } from '../components/GeoField';
@@ -11,8 +12,10 @@ import {
   PhoneIcon,
   UserIcon,
 } from '../components/icons';
-import { formatCurrency, lines } from '../lib/data';
+import { createCustomer, formatCurrency, lines } from '../lib/data';
 import { validatePhone } from '../lib/validate';
+import { errorMessage } from '../lib/session';
+import { usePortfolio } from '../lib/usePortfolio';
 
 type Errors = {
   name?: string;
@@ -22,12 +25,14 @@ type Errors = {
   address?: string;
   amount?: string;
   lineId?: string;
+  geo?: string;
 };
 
 const MIN_AMOUNT = 1000;
 const MAX_AMOUNT = 1000000;
 
 export function NewCustomer() {
+  usePortfolio();
   const navigate = useNavigate();
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -37,8 +42,10 @@ export function NewCustomer() {
   const [amount, setAmount] = useState('');
   const [lineId, setLineId] = useState('');
   const [geo, setGeo] = useState<Geo>();
+  const [geoInvalid, setGeoInvalid] = useState(false);
   const [errors, setErrors] = useState<Errors>({});
   const [submitting, setSubmitting] = useState(false);
+  const [saveError, setSaveError] = useState<string>();
 
   const amountValue = Number(amount.replace(/[^\d]/g, ''));
 
@@ -65,13 +72,29 @@ export function NewCustomer() {
             ? t('customers.form.errors.amountMax', { amount: formatCurrency(MAX_AMOUNT) })
             : undefined,
       lineId: lineId ? undefined : t('customers.form.errors.lineRequired'),
+      geo: geoInvalid ? t('common.geo.invalid') : undefined,
     };
     setErrors(next);
     if (Object.values(next).some(Boolean)) return;
 
     setSubmitting(true);
-    // UI-only for now: POST /customers goes here.
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    setSaveError(undefined);
+    try {
+      await createCustomer({
+        name: name.trim(),
+        phone: phone.replace(/\D/g, ''),
+        altPhone: altPhone.replace(/\D/g, '') || undefined,
+        parentName: parentName.trim(),
+        address: address.trim(),
+        requestedAmount: amountValue,
+        lineId,
+        geo,
+      });
+    } catch (error) {
+      setSaveError(errorMessage(error));
+      setSubmitting(false);
+      return;
+    }
     setSubmitting(false);
     navigate('/customers');
   }
@@ -160,7 +183,14 @@ export function NewCustomer() {
               ) : null}
             </div>
 
-            <GeoField value={geo} onChange={setGeo} />
+            <GeoField
+              value={geo}
+              error={errors.geo}
+              onChange={(next, invalid) => {
+                setGeo(next);
+                setGeoInvalid(invalid);
+              }}
+            />
           </div>
         </Card>
 
@@ -191,7 +221,10 @@ export function NewCustomer() {
                   <select
                     id="line"
                     value={lineId}
-                    onChange={(e) => setLineId(e.target.value)}
+                    onChange={(e) => {
+                      setLineId(e.target.value);
+                      setErrors((current) => ({ ...current, lineId: undefined }));
+                    }}
                     aria-invalid={errors.lineId ? true : undefined}
                   >
                     <option value="">{t('customers.form.selectLine')}</option>
@@ -215,6 +248,7 @@ export function NewCustomer() {
           </div>
         </Card>
 
+        <FormError message={saveError} />
         <div className="formactions">
           <Link className="btn btn--sm btn--ghost" to="/customers">
             {t('common.actions.cancel')}

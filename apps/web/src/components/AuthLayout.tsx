@@ -4,7 +4,7 @@ import { palette } from '@lms/theme';
 import { Logo } from './Logo';
 import { BoltIcon, ChartIcon, ShieldIcon } from './icons';
 
-const COMPANY = 'BillionBrains Tech Ltd';
+const COMPANY = 'Billionbrains Tech Ltd';
 
 function points() {
   return [

@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { t } from '@lms/i18n';
+import { FormError } from '../components/FormError';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { TextField } from '../components/TextField';
@@ -8,24 +9,30 @@ import { ArrowLeftIcon, CheckIcon, ChevronDownIcon } from '../components/icons';
 import {
   FREQUENCIES,
   MONTH_DAYS,
-  OFFICERS,
+  createLine,
+  officers,
   WEEKDAYS,
   monthDayLabel,
   officerLabel,
   weekdayLabel,
   type Frequency,
 } from '../lib/data';
+import { errorMessage } from '../lib/session';
+import { usePortfolio } from '../lib/usePortfolio';
 
 type Errors = { name?: string; schedule?: string };
 
 export function NewLine() {
+  usePortfolio();
   const navigate = useNavigate();
   const [name, setName] = useState('');
   const [frequency, setFrequency] = useState<Frequency>('daily');
   const [schedule, setSchedule] = useState('');
-  const [officer, setOfficer] = useState(OFFICERS[OFFICERS.length - 1]!);
+  // An officer id, or '' to leave the line unassigned.
+  const [officer, setOfficer] = useState('');
   const [errors, setErrors] = useState<Errors>({});
   const [submitting, setSubmitting] = useState(false);
+  const [saveError, setSaveError] = useState<string>();
 
   const selected = FREQUENCIES.find((f) => f.id === frequency)!;
   const needsSchedule = selected.schedule !== 'none';
@@ -54,8 +61,19 @@ export function NewLine() {
     if (next.name || next.schedule) return;
 
     setSubmitting(true);
-    // UI-only for now: POST /lines goes here.
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    setSaveError(undefined);
+    try {
+      await createLine({
+        name: name.trim(),
+        frequency,
+        schedule: needsSchedule ? schedule : undefined,
+        officerId: officer ? Number(officer) : null,
+      });
+    } catch (error) {
+      setSaveError(errorMessage(error));
+      setSubmitting(false);
+      return;
+    }
     setSubmitting(false);
     navigate('/lines');
   }
@@ -151,11 +169,12 @@ export function NewLine() {
               <label htmlFor="officer">{t('lines.form.officer')}</label>
               <div className="select select--block">
                 <select id="officer" value={officer} onChange={(e) => setOfficer(e.target.value)}>
-                  {OFFICERS.map((option) => (
-                    <option key={option} value={option}>
-                      {officerLabel(option)}
+                  {officers.map((option) => (
+                    <option key={option.id} value={String(option.id)}>
+                      {option.name}
                     </option>
                   ))}
+                  <option value="">{officerLabel('Unassigned')}</option>
                 </select>
                 <ChevronDownIcon />
               </div>
@@ -164,6 +183,7 @@ export function NewLine() {
           </div>
         </Card>
 
+        <FormError message={saveError} />
         <div className="formactions">
           <Link className="btn btn--sm btn--ghost" to="/lines">
             {t('common.actions.cancel')}

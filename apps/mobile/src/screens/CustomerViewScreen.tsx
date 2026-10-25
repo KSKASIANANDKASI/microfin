@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { t, tp } from '@lms/i18n';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -14,6 +15,7 @@ import {
   loansForCustomer,
   maskIdNumber,
   officerLabel,
+  proofLabels,
   summarizeLoan,
   type Loan,
 } from '../lib/data';
@@ -25,6 +27,8 @@ import { CUSTOMER_STATUS } from './CustomersScreen';
 type Props = NativeStackScreenProps<AppStackParamList, 'CustomerView'>;
 
 export function CustomerViewScreen({ navigation, route }: Props) {
+  // Re-read on return from the proof and pin screens, which edit the record.
+  useIsFocused();
   const customer = customerById(route.params.customerId);
 
   if (!customer) {
@@ -71,7 +75,7 @@ export function CustomerViewScreen({ navigation, route }: Props) {
         >
           <IdIcon size={16} color={colors.brand} />
           <Text style={[styles.btnText, styles.btnTextGhost]}>
-            {customer.proof ? t('customers.view.updateProof') : t('customers.list.addProof')}
+            {customer.proofs.length ? t('customers.view.updateProof') : t('customers.list.addProof')}
           </Text>
         </Pressable>
       </View>
@@ -95,10 +99,10 @@ export function CustomerViewScreen({ navigation, route }: Props) {
           <Fact label={t('customers.view.requestedAmount')}>{formatCurrency(customer.requestedAmount)}</Fact>
           <Fact
             label={t('customers.view.identityProof')}
-            note={customer.proof ? maskIdNumber(customer.proof.number) : undefined}
-            muted={!customer.proof}
+            note={customer.proofs.length ? customer.proofs.map((proof) => maskIdNumber(proof.number)).join(' · ') : undefined}
+            muted={!customer.proofs.length}
           >
-            {customer.proof ? idTypeLabel(customer.proof.type) : t('customers.view.notCaptured')}
+            {customer.proofs.length ? proofLabels(customer.proofs) : t('customers.view.notCaptured')}
           </Fact>
           <Fact
             label={t('customers.view.doorstepPin')}
@@ -119,6 +123,17 @@ export function CustomerViewScreen({ navigation, route }: Props) {
               ? `${customer.geo.lat.toFixed(5)}, ${customer.geo.lng.toFixed(5)}`
               : t('customers.view.notPinned')}
           </Fact>
+          <Pressable
+            style={({ pressed }) => [styles.factAction, pressed && styles.factActionPressed]}
+            onPress={() => navigation.navigate('CustomerLocation', { customerId: customer.id })}
+            accessibilityRole="button"
+            hitSlop={8}
+          >
+            <PinIcon size={14} color={colors.brand} />
+            <Text style={styles.factActionText}>
+              {customer.geo ? t('customers.view.editPin') : t('customers.view.addPin')}
+            </Text>
+          </Pressable>
         </View>
       </Card>
 
@@ -245,6 +260,17 @@ const styles = StyleSheet.create({
   factValueRow: { flexDirection: 'row', alignItems: 'center', gap: space[1], marginTop: 2 },
   factValue: { ...textStyle('bodySm', fontFamily.bodySemibold), color: colors.text, flexShrink: 1 },
   factMuted: { fontFamily: fontFamily.body, color: colors.textFaint },
+  // Sits under the doorstep pin it edits, so it closes up the gap between facts.
+  factAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: space[1],
+    marginTop: -space[2],
+    paddingVertical: space[1],
+  },
+  factActionPressed: { opacity: 0.6 },
+  factActionText: { ...textStyle('bodySm', fontFamily.bodySemibold), color: colors.brand },
   listTop: { marginTop: space[4], borderTopWidth: 1, borderTopColor: colors.border },
   row: {
     gap: space[1],

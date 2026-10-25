@@ -11,7 +11,9 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, elevation, fontFamily, palette, radius, space, textStyle, type } from '../theme';
-import { notifications, user } from '../lib/data';
+import { clearPortfolio, notifications, user } from '../lib/data';
+import { usePortfolio } from '../lib/usePortfolio';
+import { clearSession } from '../lib/session';
 import { LogoMark } from './Logo';
 import { BellIcon, ChevronDownIcon, GearIcon, IdIcon, LogOutIcon } from './icons';
 
@@ -19,6 +21,7 @@ type Panel = 'notifications' | 'profile' | null;
 
 /** Company name on the left; notifications, settings and profile on the right. */
 export function TopBar() {
+  usePortfolio();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const [panel, setPanel] = useState<Panel>(null);
@@ -32,7 +35,7 @@ export function TopBar() {
         <View style={styles.brand}>
           <LogoMark size={32} />
           <Text style={styles.name} numberOfLines={1}>
-            BillionBrains
+            Finance Easy
           </Text>
         </View>
 
@@ -138,7 +141,10 @@ export function TopBar() {
                   danger
                   onPress={() => {
                     close();
-                    navigation.getParent()?.navigate('Auth');
+                    clearSession();
+                    clearPortfolio();
+                    // The bar sits above the tabs, so this is already the root stack.
+                    navigation.reset({ index: 0, routes: [{ name: 'Auth' }] });
                   }}
                 />
               </>

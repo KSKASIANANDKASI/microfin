@@ -8,6 +8,7 @@ import { collectionEfficiency, riskAnalysis, type RiskBand } from '../lib/analyt
 import { askAssistant, type ChatMessage } from '../lib/assistant';
 import { formatCurrency, formatNumber, officerLabel } from '../lib/data';
 import { useCollectionSheet } from '../lib/useCollectionSheet';
+import { usePortfolio } from '../lib/usePortfolio';
 
 const pct = (value: number) => Math.round(value * 100);
 
@@ -16,6 +17,7 @@ const BAND_TONE = { low: 'good', medium: 'warning', high: 'critical' } as const 
 const SUGGESTIONS = ['efficiency', 'risk', 'officers', 'summary'] as const;
 
 export function Insights() {
+  usePortfolio();
   // Receipts move the loan book; re-derive whenever the sheet changes.
   const sheet = useCollectionSheet();
   const efficiency = useMemo(() => collectionEfficiency(), [sheet]);

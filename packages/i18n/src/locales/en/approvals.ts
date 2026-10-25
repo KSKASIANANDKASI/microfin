@@ -47,6 +47,8 @@ export const approvals = {
     note: 'Note',
     notePlaceholder: 'Optional when approving. Required to reject.',
     reasonRequired: 'Give a reason for the rejection.',
+    awaitingManager: 'Waiting for a manager’s decision.',
+    awaitingDisbursal: 'Approved. A manager will disburse it.',
     approve: 'Approve',
     reject: 'Reject',
     approvedOn: 'Approved on {date}',
